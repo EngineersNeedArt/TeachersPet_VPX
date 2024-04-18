@@ -1,0 +1,3765 @@
+'*
+'*        Williams' Teacher's Pet (1965)
+'*        Table build/scripted by Loserman76
+'*        Playfield/plastics by PBecker
+'*
+
+Option Explicit
+Randomize
+ExecuteGlobal GetTextFile ("core.vbs")
+
+On Error Resume Next
+ExecuteGlobal GetTextFile ("Controller.vbs")
+If Err Then MsgBox "Unable To open Controller.vbs. Ensure that it is In the scripts folder."
+On Error Goto 0
+
+Const cGameName = "TeachersPet_1965"
+
+Const ShadowFlippersOn = True
+Const ShadowBallOn = True
+Const ShadowConfigFile = False
+
+Dim Controller	' B2S
+Dim B2SScore	' B2S Score Displayed
+
+Const HSFileName = "TeachersPet_65VPX.txt"
+Const B2STableName = "TeachersPet_1965"
+Const LMEMTableConfig = "LMEMTables.txt"
+Const LMEMShadowConfig = "LMEMShadows.txt"
+Dim EnableBallShadow
+Dim EnableFlipperShadow
+
+'* this value adjusts score motor behavior - 0 allows you To continue scoring while the score motor is running - 1 sets score motor To behave more like a real EM
+Const ScoreMotorAdjustment = 1
+
+'* this is a debug setting To use an older scoring routine vs a newer score routine - don't change this value
+Const ScoreAdditionAdjustment = 1
+
+Dim ScoreChecker
+Dim CheckAllScores,CheckAllPoints
+Dim sortscores(4)
+Dim sortpoints(4)
+Dim sortplayerpoints(4)
+Dim sortplayers(4)
+Dim B2SOn		'True/False If want backglass
+Dim ChimesOn
+Dim TextStr, TextStr2
+Dim i, xx, LStep, RStep
+Dim obj
+Dim bgpos
+Dim kgpos
+Dim dooralreadyopen
+Dim kgdooralreadyopen
+Dim TargetSpecialLit
+Dim Points210counter
+Dim Points500counter
+Dim Points1000counter
+Dim Points2000counter
+Dim BallsPerGame
+Dim InProgress
+Dim BallInPlay
+Dim CreditsPerCoin
+Dim Score100K(4)
+Dim Score(4)
+Dim ScoreDisplay(4)
+Dim HighScorePaid(4)
+Dim HighScore
+Dim HighScoreReward
+Dim BonusMultiplier
+Dim Credits
+Dim Match
+Dim Replay1
+Dim Replay2
+Dim Replay3
+Dim Replay4
+Dim Replay1Paid(4)
+Dim Replay2Paid(4)
+Dim Replay3Paid(4)
+Dim Replay4Paid(4)
+Dim BallReplay1
+Dim BallReplay2
+Dim BallReplay3
+Dim ReplayBalls1Paid(4)
+Dim ReplayBalls2Paid(4)
+Dim ReplayBalls3Paid(4)
+Dim TableTilted
+Dim TiltCount
+Dim debugscore
+Dim AltRelayValue
+Dim OperatorMenu
+Dim BonusBooster
+Dim BonusBoosterCounter
+Dim BonusCounter
+Dim HoleCounter
+Dim Ones
+Dim Tens
+Dim Hundreds
+Dim Thousands
+Dim Player
+Dim Players
+Dim rst
+Dim bonuscountdown
+Dim TempMultiCounter
+Dim TempPlayerup
+Dim RotatorTemp
+Dim GreenTargetsDownCounter
+Dim BlueTargetsDownCounter
+Dim YellowTargetsDownCounter
+Dim bump1
+Dim bump2
+Dim bump3
+Dim bump4
+Dim LastChime10
+Dim LastChime100
+Dim LastChime1000
+Dim Score10
+Dim Score100
+Dim tempbumper
+Dim MotorRunning
+Dim Replay1Table(20)
+Dim Replay2Table(20)
+Dim Replay3Table(20)
+Dim Replay4Table(20)
+Dim ReplayBallsTable1(16)
+Dim ReplayBallsTable2(16)
+Dim ReplayBallsTable3(16)
+Dim ReplayTableSet
+Dim ReplayLevel
+Dim ReplayBalls
+Dim ReplayTableMax
+Dim ReplayBallsTableMax
+Dim BaseHit, BaseHitCounter
+Dim LeftTargetFlag, RightTargetFlag
+Dim FootballPosition, FootballResetFlag, FootballScore
+Dim ImpulseReelCount, ScoreMotorPosition
+Dim TempScore, TempAdvance, KickoffFlag, AdvanceRelaySwitch
+Dim StartGameState, SpecialsFlag
+Dim KickerCounter
+
+Sub Table1_Init ()
+	If Table1.ShowDT = False Then
+		For Each obj In DesktopCrap
+			obj.Visible = False
+		Next
+	End If
+
+	OperatorMenuBackdrop.Image = "PostitBL"
+	For XOpt = 1 To MaxOption
+		Eval ("OperatorOption" & XOpt).Image = "PostitBL"
+	Next
+	For XOpt = 1 To 256
+		Eval ("Option" & XOpt).Image = "PostItBL"
+	Next
+	
+	EMSInit Table1
+	LoadEM
+	LoadLMEMConfig2
+	HideOptions
+	SetupReplayTables
+	PlasticsOff
+	BumpersOff
+	OperatorMenu = 0
+	StartGameState = 0
+	ChimesOn = 0
+	ReplayLevel = 1
+	ReplayBalls = 1
+	BallsPerGame = 5
+	EMReel1.ResetToZero
+	EMReel2.ResetToZero
+	HighScore = 0
+	MotorRunning = 0
+	BaseHit = 0
+	BaseHitCounter = 0
+	HighScoreReward = 1
+	BallTextBox.Text = ""
+	MatchTextBox.Text = ""
+	Credits = 0
+	loadhs
+	If HighScore = 0 Then HighScore = 5000
+	
+	TableTilted = False
+	TiltReel.SetValue(1)
+	Match = Int (Rnd * 10)
+	MatchReel.SetValue(Match + 1)
+	
+	CanPlayReel.SetValue(0)
+	BaseRunner1.SetValue(1)
+	BaseRunner2.SetValue(1)
+	BaseRunner3.SetValue(1)
+	
+	For Each obj In PlayerHuds
+		obj.SetValue(0)
+	Next
+	For Each obj In PlayerHUDScores
+		obj.State = 0
+	Next
+	For Each obj In PlayerScores
+		obj.ResetToZero
+	Next
+	For Each obj In bottgate
+		obj.IsDropped = True
+	Next
+	
+	bgpos = 6
+	bottgate(bgpos).IsDropped = False
+	primgate.RotY = 90
+	Replay1 = Replay1Table(ReplayLevel)
+	Replay2 = Replay2Table(ReplayLevel)
+	Replay3 = Replay3Table(ReplayLevel)
+	Replay4 = Replay4Table(ReplayLevel)
+	BallReplay1 = ReplayBallsTable1(ReplayBalls)
+	BallReplay2 = ReplayBallsTable2(ReplayBalls)
+	BallReplay3 = ReplayBallsTable3(ReplayBalls)
+	BonusCounter = 0
+	HoleCounter = 0
+	bgpos = 6
+	kgpos = 0
+	dooralreadyopen = 0
+	kgdooralreadyopen = 0
+	Bumper1Light.State = 1
+	ReplayCard.Image = "BC" + FormatNumber (BallsPerGame, 0)
+	RefreshReplayCard
+'	ResetBalls
+'	PlaySound "Plunger"
+	RolloverLight001.State = 0
+	RolloverLight002.State = 0
+	RolloverLight003.State = 0
+	TargetSpecialLit = 0
+	Points210counter = 0
+	Points500counter = 0
+	Points1000counter = 0
+	Points2000counter = 0
+	BonusBooster = 3
+	BonusBoosterCounter = 0
+	Players = 0
+	RotatorTemp = 1
+	InProgress = False
+	ScoreText.Text = HighScore
+	
+	If B2SOn Then
+		If Match = 0 Then
+			Controller.B2SSetMatch 10
+		Else
+			Controller.B2SSetMatch Match
+		End If
+		Controller.B2SSetScoreRolloverPlayer1 0
+		'Controller.B2SSetScore 4,HighScore
+		Controller.B2SSetTilt 1
+		Controller.B2SSetCredits Credits
+		Controller.B2SSetGameOver 1
+	End If
+	
+	GameOverReel.SetValue(1)
+	CreditsReel.SetValue(Credits)
+	If Credits > 0 Then DOF 232, 1
+	For i = 1 To 2
+		player = i
+		If B2SOn Then 
+			Controller.B2SSetScorePlayer player, 0
+		End If
+	Next
+	bump1 = 1
+	bump2 = 1
+	bump3 = 1
+	bump4 = 1
+	InitPauser5.Enabled = True
+End Sub
+
+Sub Table1_exit ()
+	savehs
+	SaveLMEMConfig
+	SaveLMEMConfig2
+	If B2SOn Then Controller.Stop
+End Sub
+
+Sub Table1_KeyDown (ByVal keycode)
+	' GNMOD
+	If EnteringInitials Then
+		CollectInitials (keycode)
+		Exit Sub
+	End If
+	
+	If EnteringOptions Then
+		CollectOptions (keycode)
+		Exit Sub
+	End If
+	
+	If keycode = PlungerKey Then
+		Plunger.PullBack
+		PlungerPulled = 1
+	End If
+	
+	If keycode = LeftFlipperKey And InProgress = False Then
+		OperatorMenuTimer.Enabled = True
+	End If
+	' END GNMOD
+	
+	If keycode = LeftFlipperKey And InProgress = True And TableTilted = False Then
+		LeftFlipper.RotateToEnd
+		EMSPlayLeftFlipperActivateSound LeftFlipper
+'		PlaySound SoundFXDOF("FlipperUp",201,DOFOn,DOFContactors)
+	End If
+	
+	If keycode = RightFlipperKey And InProgress = True And TableTilted = False Then
+		RightFlipper.RotateToEnd
+		EMSPlayRightFlipperActivateSound RightFlipper
+'		PlaySound SoundFXDOF("FlipperUp",202,DOFOn,DOFContactors)
+	End If
+	
+	If keycode = LeftTiltKey Then
+		Nudge 90, 2
+		TiltIt
+	End If
+	
+	If keycode = RightTiltKey Then
+		Nudge 270, 2
+		TiltIt
+	End If
+	
+	If keycode = CenterTiltKey Then
+		Nudge 0, 2
+		TiltIt
+	End If
+	
+	If keycode = MechanicalTilt Then
+		TiltCount = 2
+		TiltIt
+	End If
+	
+	If keycode = AddCreditKey Or keycode = 4 Then
+		If B2SOn Then
+			'Controller.B2SSetScorePlayer6 HighScore
+		End If
+		EMSPlayCoinSound
+		AddSpecial2
+	End If
+	
+	If keycode = 5 Then 
+		EMSPlayCoinSound
+		AddSpecial2
+		keycode = StartGameKey
+	End If
+	
+	If keycode = 7 Then
+		Player = 1
+		AdvanceFootball
+	End If
+	
+	If keycode = 8 Then
+		ImpulseReelCount = Int (Rnd * 5)
+		ResetFootballMain
+	End If
+	
+	If keycode = StartGameKey And Credits > 0 And InProgress = False And Players = 0 And EnteringOptions = 0 Then
+'GNMOD
+		OperatorMenuTimer.Enabled = False
+'END GNMODthen
+		Credits = Credits - 1
+		If Credits < 1 Then DOF 232, 0
+		CreditsReel.SetValue (Credits)
+		Players = 1
+		CanPlayReel.SetValue (Players)
+		MatchReel.SetValue (0)
+		Player = 1
+		EMSPlayStartupSound
+		TempPlayerUp = Player
+'		PlayerUpRotator.Enabled = True
+		rst = 0
+		BallInPlay = 1
+		InProgress = True
+		GameOverReel.SetValue (0)
+		resettimer.Enabled = True
+		BonusMultiplier = 1
+		If B2SOn Then
+			Controller.B2SSetTilt 0
+			Controller.B2SSetGameOver 0
+			Controller.B2SSetMatch 0
+			Controller.B2SSetCredits Credits
+			'Controller.B2SSetScore 4,HighScore
+			Controller.B2SSetCanPlay 1
+			Controller.B2SSetPlayerUp 1
+'			Controller.B2SSetBallInPlay BallInPlay
+			Controller.B2SSetScoreRolloverPlayer1 0
+		End If
+		For Each obj In PlayerScores
+'			obj.ResetToZero
+		Next
+		For Each obj In PlayerHuds
+			obj.SetValue (0)
+		Next
+		If Table1.ShowDT = True Then
+			For Each obj In PlayerScores
+'				obj.ResetToZero
+				obj.Visible = True
+			Next
+			For Each obj In PlayerScoresOn
+'				obj.ResetToZero
+				obj.Visible = False
+			Next
+			For Each obj In PlayerHuds
+				obj.SetValue(0)
+			Next
+			For Each obj In PlayerHUDScores
+				obj.State = 0
+			Next
+			PlayerHuds(Player - 1).SetValue(1)
+			PlayerHUDScores(Player - 1).State = 1
+			PlayerScores(Player - 1).Visible = 0
+			PlayerScoresOn(Player - 1).Visible = 1
+			PlayerHuds(Player).SetValue(1)
+			PlayerHUDScores(Player).State = 1
+			PlayerScores(Player).Visible = 0
+			PlayerScoresOn(Player).Visible = 1
+		End If
+	End If
+End Sub
+
+Sub Table1_KeyUp (ByVal keycode)
+	' GNMOD
+	If EnteringInitials Then
+		Exit Sub
+	End If
+	
+	If keycode = PlungerKey Then
+		If PlungerPulled = 0 Then
+			Exit Sub
+		End If
+		EMSPlayPlungerReleaseBallSound Plunger
+		Plunger.Fire
+	End If
+	
+	If keycode = LeftFlipperKey Then
+		OperatorMenuTimer.Enabled = False
+	End If
+	' END GNMOD
+	
+	If keycode = LeftFlipperKey And InProgress = True And TableTilted = False Then
+		LeftFlipper.RotateToStart
+		EMSPlayLeftFlipperDeactivateSound LeftFlipper
+'		PlaySound SoundFXDOF("FlipperDown",201,DOFOff,DOFContactors)
+	End If
+	
+	If keycode = RightFlipperKey And InProgress = True And TableTilted = False Then
+		RightFlipper.RotateToStart
+		EMSPlayRightFlipperDeactivateSound RightFlipper
+'		PlaySound SoundFXDOF("FlipperDown",202,DOFOff,DOFContactors)
+	End If
+End Sub
+
+Sub Drain_Hit()
+	Drain.DestroyBall
+	EMSPlayDrainSound Drain
+	DOF 207,2
+'	AddBonus
+	Pause4Bonustimer.Enabled = True
+End Sub
+
+Sub Pause4Bonustimer_timer
+	Pause4Bonustimer.Enabled = 0
+	NextBallDelay.Enabled = True
+End Sub
+
+Sub CloseGateTrigger_Hit()
+	DOF 238, DOFPulse
+End Sub
+
+'***********************
+' Flipper Logos
+'***********************
+
+Sub UpdateFlipperLogos_Timer
+	LFLogo.ObjRotZ = LeftFlipper.CurrentAngle + 90
+	RFlogo.ObjRotZ = RightFlipper.CurrentAngle + 90
+'	LFlip1.RotZ = LeftFlipper.CurrentAngle
+'	RFlip1.RotZ = RightFlipper.CurrentAngle
+	
+	PGate.Rotz = (Gate.CurrentAngle * 0.75) + 25
+	FlipperLSh.RotZ = LeftFlipper.Currentangle
+	FlipperRSh.RotZ = RightFlipper.Currentangle
+End Sub
+
+'***********************
+' Slingshots
+'***********************
+
+Sub RightSlingShot_Slingshot
+	EMSPlayRightSlingshotSound sling1
+'	playsound SoundFXDOF("right_slingshot",205,DOFPulse,DOFContactors),0,1,-0.05,0.05, 0, 1, 0.05, 0.05
+	DOF 206,2
+	RSling0.Visible = 0
+	RSling1.Visible = 1
+	sling1.TransZ = -20
+	RStep = 0
+	RightSlingShot.TimerEnabled = 1
+	AddScore 1
+End Sub
+
+Sub RightSlingShot_Timer
+	Select Case RStep
+		Case 3: RSLing1.Visible = 0 : RSLing2.Visible = 1 : sling1.TransZ = -10
+		Case 4: RSLing2.Visible = 0 : RSling0.Visible = 1 : sling1.TransZ = 0 : RightSlingShot.TimerEnabled = 0
+	End Select
+	RStep = RStep + 1
+End Sub
+
+Sub LeftSlingShot_Slingshot
+	EMSPlayLeftSlingshotSound sling2
+'	playsound SoundFXDOF("left_slingshot",203,DOFPulse,DOFContactors),0,1,-0.05,0.05
+	DOF 204,2
+	LSling0.Visible = 0
+	LSling1.Visible = 1
+	sling2.TransZ = -20
+	LStep = 0
+	LeftSlingShot.TimerEnabled = 1
+	AddScore 1
+End Sub
+
+Sub LeftSlingShot_Timer
+	Select Case LStep
+		Case 3: LSLing1.Visible = 0 : LSLing2.Visible = 1 : sling2.TransZ = -10
+		Case 4: LSLing2.Visible = 0 : LSLing0.Visible = 1 : sling2.TransZ = 0 : LeftSlingShot.TimerEnabled = 0
+	End Select
+	LStep = LStep + 1
+End Sub
+
+'***********************************
+' Walls
+'***********************************
+
+Sub RubberwallSwitches_Hit (idx)
+	If TableTilted = False Then
+		If idx = 0 Then
+			AddScore 1
+			If LowerLeftTargetLight.State = 1 Then
+				LowerLeftTargetLight.State = 0
+				LeftOutlaneLight.State = 0
+				LetterLight008.State = 1
+				If B2SOn Then Controller.B2SSetData 58,1
+				CheckTeacher
+			End If
+		ElseIf idx = 1 Then
+			AddScore 1
+			If LowerRightTargetLight.State = 1 Then
+				LowerRightTargetLight.State = 0
+				RightOutlaneLight.State = 0
+				LetterLight009.State = 1
+				If B2SOn Then Controller.B2SSetData 59,1
+				CheckTeacher
+			End If
+		Else
+			AddScore 1
+		End If
+	End If
+End Sub
+
+'***********************************
+' Targets
+'***********************************
+
+Sub TopTargetLeft_Hit()
+	If TableTilted = False Then
+		DOF 216,2
+		AddScore 10
+		If LightLeftTarget.State = 1 Then
+			LightLeftTarget.State = 0
+			LetterLight003.State = 1
+			If B2SOn Then Controller.B2SSetData 53,1
+			CheckTeacher
+		End If
+	End If
+End Sub
+
+Sub TopTargetRight_Hit()
+	If TableTilted = False Then
+		DOF 217,2
+		AddScore 10
+		If LightRightTarget.State = 1 Then
+			LightRightTarget.State = 0
+			LetterLight004.State = 1
+			If B2SOn Then Controller.B2SSetData 54,1
+			CheckTeacher
+		End If
+	End If
+End Sub
+
+Sub LowerTargetLeft_Hit
+	If TableTilted = False Then
+		LowerTargetLeft.IsDropped = True
+		If TargetScoreLights(0).State = 1 Then SetMotor 50
+		If TargetScoreLights(1).State = 1 Then AddScore 100
+		If TargetScoreLights(2).State = 1 Then SetMotor 300
+		If TargetScoreLights(3).State = 1 Then SetMotor 400
+		If TargetScoreLights(4).State = 1 Then SetMotor 500
+		If TargetScoreLights(5).State = 1 Then AddSpecial
+	End If
+End Sub
+
+Sub LowerTargetRight_Hit
+	If TableTilted = False Then
+		LowerTargetRight.IsDropped = True
+		If TargetScoreLights(0).State = 1 Then SetMotor 50
+		If TargetScoreLights(1).State = 1 Then AddScore 100
+		If TargetScoreLights(2).State = 1 Then SetMotor 300
+		If TargetScoreLights(3).State = 1 Then SetMotor 400
+		If TargetScoreLights(4).State = 1 Then SetMotor 500
+		If TargetScoreLights(5).State = 1 Then AddSpecial
+	End If
+End Sub
+
+'***********************************
+' Bumpers
+'***********************************
+
+Sub Bumper1_Hit
+	If TableTilted = False Then
+		EMSPlayMiddleBumperSound Bumper1
+'		PlaySound SoundFXDOF("bumper1",208,DOFPulse,DOFContactors)
+		DOF 209,2
+		bump1 = 1
+		If Bumper1Light.State = 1 Then
+			AddScore 10
+		Else
+			AddScore 10
+		End If
+	End If
+End Sub
+
+Sub Bumper2_Hit
+	If TableTilted = False Then
+		EMSPlayMiddleBumperSound Bumper2
+'		PlaySound SoundFXDOF("bumper1",210,DOFPulse,DOFContactors)
+		DOF 211,2
+		bump2 = 1
+		If Bumper2Light.State = 1 Then
+			AddScore 10
+		Else
+			AddScore 1
+		End If
+	End If
+End Sub
+
+Sub Bumper3_Hit
+	If TableTilted = False Then
+		EMSPlayMiddleBumperSound Bumper3
+'		PlaySound SoundFXDOF("bumper1",208,DOFPulse,DOFContactors)
+		DOF 209,2
+		bump1 = 1
+		If Bumper3Light.State = 1 Then
+			AddScore 10
+		Else
+			AddScore 1
+		End If
+	End If
+End Sub
+
+Sub Bumper6_Hit
+	EMSPlayRubberHitSound
+	If TableTilted = False Then
+		bump1 = 1
+		AddScore 1
+	End If
+End Sub
+
+Sub Bumper7_Hit
+	EMSPlayRubberHitSound
+	If TableTilted = False Then
+		bump1 = 1
+		AddScore 1
+	End If
+End Sub
+
+'***********************************
+' Triggers
+'***********************************
+
+Sub Trigger1_Hit()
+	Button001.Z = -1.5
+	If TableTilted = False Then
+		EMSPlaySensorSound
+		Bumper2Light.State = 1
+		Bumper3Light.State = 1
+	End If
+End Sub
+
+Sub Trigger2_Hit()
+	Button002.Z = -1.5
+	If TableTilted = False Then
+		EMSPlaySensorSound
+		AddScore 10
+		ResetDrops
+	End If
+End Sub
+
+Sub Trigger3_Hit()
+	Button003.Z = -1.5
+	If TableTilted = False Then
+		EMSPlaySensorSound
+		AddScore 10
+		ResetDrops
+	End If
+End Sub
+
+Sub Trigger4_Hit()
+	Button004.Z = -1.5
+	If TableTilted = False Then
+		DOF 221,2
+		EMSPlaySensorSound
+		AddScore 10
+		ResetDrops
+	End If
+End Sub
+
+Sub Trigger1_Unhit
+	Button001.Z = 0.5
+End Sub
+
+Sub Trigger2_Unhit
+	Button002.Z = 0.5
+End Sub
+
+Sub Trigger3_Unhit
+	Button003.Z = 0.5
+End Sub
+
+Sub Trigger4_Unhit
+	Button004.Z = 0.5
+End Sub
+
+Sub Trigger001_hit
+	If TableTilted = False Then
+		EMSPlaySensorSound
+		AddScore 100
+		RolloverLight001.State = 1
+		Check123
+	End If
+End Sub
+
+Sub Trigger002_hit
+	If TableTilted = False Then
+		EMSPlaySensorSound
+		SetMotor 500
+		RolloverLight002.State = 1
+		Check123
+	End If
+End Sub
+
+Sub Trigger003_hit
+	If TableTilted = False Then
+		EMSPlaySensorSound
+		AddScore 100
+		RolloverLight003.State = 1
+		Check123
+	End If
+End Sub
+
+Sub TriggerLeftOutlane_Hit()
+	If TableTilted = False Then
+		EMSPlaySensorSound
+		DOF 228,2
+		AddScore 100
+		If LeftOutlaneLight.State = 1 Then
+			LeftOutlaneLight.State = 0
+			LetterLight008.State = 1
+			If B2SOn Then Controller.B2SSetData 58,1
+			CheckTeacher
+		End If
+	End If
+End Sub
+
+Sub TriggerRightOutlane_Hit()
+	If TableTilted = False Then
+		EMSPlaySensorSound
+		DOF 229,2
+		AddScore 100
+		If RightOutlaneLight.State = 1 Then
+			RightOutlaneLight.State = 0
+			LetterLight009.State = 1
+			If B2SOn Then Controller.B2SSetData 59,1
+			CheckTeacher
+		End If
+		If dooralreadyopen = 1 Then
+			delaykgclose.Enabled = True
+			RolloverLight001.State = 0
+			RolloverLight002.State = 0
+			RolloverLight003.State = 0
+		End If
+	End If
+End Sub
+
+Sub CheckTeacher
+	For Each obj In TargetScoreLights
+		obj.State = 0
+	Next
+	If KickerLight001.State = 1 Or KickerLight002.State = 1 Then
+		TargetScoreLights(0).State = 1
+		Exit Sub
+	End If
+	If KickerLight001.State = 0 And Kickerlight002.State = 0 And (LightLeftTarget.State = 1 Or LightRightTarget.State = 1) Then
+		TargetScoreLights(1).State = 1
+		Exit Sub
+	End If
+	If KickerLight001.State = 0 And Kickerlight002.State = 0 And LightLeftTarget.State = 0 And LightRightTarget.State = 0 And KickerLight003.State = 1 Then
+		TargetScoreLights(2).State = 1
+		Exit Sub
+	End If
+	If KickerLight001.State = 0 And Kickerlight002.State = 0 And LightLeftTarget.State = 0 And LightRightTarget.State = 0 And KickerLight003.State = 0 And (KickerLight004.State = 1 Or LeftOutlaneLight.State = 1) Then
+		TargetScoreLights(3).State = 1
+		Exit Sub
+	End If
+	If KickerLight001.State = 0 And Kickerlight002.State = 0 And LightLeftTarget.State = 0 And LightRightTarget.State = 0 And KickerLight003.State = 0 And KickerLight004.State = 0 And LeftOutlaneLight.State = 0 And RightOutlaneLight.State = 1 Then
+		TargetScoreLights(4).State = 1
+		Exit Sub
+	End If
+	If KickerLight001.State = 0 And Kickerlight002.State = 0 And LightLeftTarget.State = 0 And LightRightTarget.State = 0 And KickerLight003.State = 0 And KickerLight004.State = 0 And LeftOutlaneLight.State = 0 And RightOutlaneLight.State = 0 Then
+		TargetScoreLights(5).State = 1
+		Exit Sub
+	End If
+End Sub
+
+Sub Check123
+	If RolloverLight001.State = 1 And RolloverLight002.State = 1 And RolloverLight003.State = 1 Then
+		If dooralreadyopen = 0 Then
+			openg.Enabled = True
+		End If
+	End If
+End Sub
+
+
+'***********************************
+' Kickers
+'***********************************
+
+Sub Kicker001_Hit ()
+	Dim speedx, speedy, finalspeed
+	speedx = activeball.VelX
+	speedy = activeball.VelY
+	finalspeed = Sqr(activeball.VelX * activeball.VelX + activeball.VelY * activeball.VelY)
+	KickerCounter = 0
+	If TableTilted = True Then
+		Kicker001.Timerenabled = 1
+		Exit Sub
+	End If
+	KickerHold1.Enabled = 1	
+End Sub
+
+Sub KickerHold1_timer
+	If MotorRunning = 0 Then
+		SetMotor 50
+		KickerHold1.Enabled = False
+		Kicker001.TimerEnabled = True
+	End If
+End Sub
+
+Const KICKER_VOLUME = 1.0
+
+Sub Kicker001_Timer()
+	Dim X
+	KickerCounter = KickerCounter + 1
+	If KickerCounter > 9 Then KickerCounter = 0
+	Select Case KickerCounter
+		Case 2:
+			KickerLight001.State = 0
+			LetterLight001.State = 1
+			LetterLight011.State = 1
+			If B2SOn Then 
+				Controller.B2SSetData 51,1
+				Controller.B2SSetData 61,1
+			End If
+			CheckTeacher
+		Case 6:
+			EMSPlaySoundAtVolumeForObject "scoopexit", KICKER_VOLUME, Kicker001
+'			PlaySound SoundFXDOF("scoopexit",126,DOFPulse,DOFContactors)
+			DOF 128, DOFPulse
+			X = Int (Rnd () * 5 + 1)
+			Kicker001.Kick 190 + X,12
+			Pkickarm001.RotZ = 15
+		Case 8:
+			Kicker001.TimerEnabled = 0
+			Pkickarm001.RotZ = 0
+	End Select
+End Sub
+
+Sub Kicker002_Hit ()
+	Dim speedx, speedy, finalspeed
+	speedx = activeball.VelX
+	speedy = activeball.VelY
+	finalspeed = Sqr (activeball.VelX * activeball.VelX + activeball.VelY * activeball.VelY)
+	KickerCounter = 0
+	If TableTilted = True Then
+		Kicker002.Timerenabled = 1
+		Exit Sub
+	End If
+	KickerHold2.Enabled = 1
+End Sub
+
+Sub KickerHold2_timer
+	If MotorRunning = 0 Then
+		SetMotor 50
+		KickerHold2.Enabled = False
+		Kicker002.TimerEnabled = True
+	End If
+End Sub
+
+Sub Kicker002_Timer ()
+	Dim X
+	KickerCounter = KickerCounter + 1
+	If KickerCounter > 9 Then KickerCounter = 0
+	Select Case KickerCounter
+		Case 2:
+			KickerLight002.State = 0
+			LetterLight002.State = 1
+			LetterLight006.State = 1
+			LetterLight010.State = 1
+			If B2SOn Then 
+				Controller.B2SSetData 52, 1
+				Controller.B2SSetData 56, 1
+				Controller.B2SSetData 60, 1
+			End If
+			CheckTeacher
+		Case 6:
+			EMSPlaySoundAtVolumeForObject "scoopexit", KICKER_VOLUME, Kicker002
+'			PlaySound SoundFXDOF("scoopexit",126,DOFPulse,DOFContactors)
+			DOF 128, DOFPulse
+			X = Int (Rnd () * 5 + 1)
+			Kicker002.Kick 170 + X, 12
+			Pkickarm002.RotZ = 15
+		Case 8:
+			Kicker002.TimerEnabled = 0
+			Pkickarm002.RotZ = 0
+	End Select
+End Sub
+
+Sub Kicker003_Hit ()
+	Dim speedx,speedy,finalspeed
+	speedx = activeball.VelX
+	speedy = activeball.VelY
+	finalspeed = Sqr (activeball.VelX * activeball.VelX + activeball.VelY * activeball.VelY)
+	KickerCounter = 0
+	If TableTilted = True Then
+		Kicker003.Timerenabled = 1
+		Exit Sub
+	End If
+	KickerHold3.Enabled = 1
+End Sub
+
+Sub KickerHold3_timer
+	If MotorRunning = 0 Then
+		SetMotor 50
+		KickerHold3.Enabled = False
+		Kicker003.TimerEnabled = True
+	End If
+End Sub
+
+Sub Kicker003_Timer ()
+	Dim X
+	KickerCounter = KickerCounter + 1
+	If KickerCounter > 9 Then KickerCounter = 0
+	Select Case KickerCounter
+		Case 2:
+			KickerLight003.State = 0
+			LetterLight005.State = 1
+			If B2SOn Then 
+				Controller.B2SSetData 55, 1
+			End If
+			CheckTeacher
+		Case 6:
+			EMSPlaySoundAtVolumeForObject "scoopexit", KICKER_VOLUME, Kicker003
+'			PlaySound SoundFXDOF("scoopexit",126,DOFPulse,DOFContactors)
+			DOF 128, DOFPulse
+			X = Int (Rnd () * 5 + 1)
+			Kicker003.Kick 170 + X, 12
+			Pkickarm003.RotZ = 15
+		Case 8:
+			Kicker003.TimerEnabled = 0
+			Pkickarm003.RotZ = 0
+	End Select
+End Sub
+
+Sub Kicker004_Hit ()
+	Dim speedx, speedy, finalspeed
+	speedx = activeball.VelX
+	speedy = activeball.VelY
+	finalspeed = Sqr (activeball.VelX * activeball.VelX + activeball.VelY * activeball.VelY)
+	KickerCounter = 0
+	If TableTilted = True Then
+		Kicker004.Timerenabled = 1
+		Exit Sub
+	End If
+	KickerHold4.Enabled = 1
+End Sub
+
+Sub KickerHold4_timer
+	If MotorRunning = 0 Then
+		SetMotor 50
+		KickerHold4.Enabled = False
+		Kicker004.TimerEnabled = True
+	End If
+End Sub
+
+Sub Kicker004_Timer ()
+	Dim X
+	KickerCounter = KickerCounter + 1
+	If KickerCounter > 9 Then KickerCounter = 0
+	Select Case KickerCounter
+		Case 2:
+			KickerLight004.State = 0
+			LetterLight007.State = 1
+			If B2SOn Then 
+				Controller.B2SSetData 57, 1
+			End If
+			CheckTeacher
+		Case 6:
+			EMSPlaySoundAtVolumeForObject "scoopexit", KICKER_VOLUME, Kicker004
+'			PlaySound SoundFXDOF("scoopexit",126,DOFPulse,DOFContactors)
+			DOF 128, DOFPulse
+			X = Int (Rnd () * 5 + 1)
+			Kicker004.Kick 190+X,12
+			Pkickarm004.RotZ = 15
+		Case 8:
+			Kicker004.TimerEnabled = 0
+			Pkickarm004.RotZ = 0
+	End Select
+End Sub
+
+'****************************************************
+
+Sub AddSpecial()
+	EMSPlayKnockerSound
+'	PlaySound SoundFXDOF("knocker",230,DOFPulse,DOFContactors)
+	DOF 231,2
+	Credits = Credits+1
+	DOF 232,1
+	If Credits>15 Then Credits = 15
+	If B2SOn Then
+		Controller.B2SSetCredits Credits
+	End If
+	CreditsReel.SetValue(Credits)
+End Sub
+
+Sub AddSpecial2()
+	EMSPlayClickSound
+	Credits = Credits + 1
+	DOF 232, 1
+	If Credits > 15 Then Credits = 15
+	If B2SOn Then
+		Controller.B2SSetCredits Credits
+	End If
+	CreditsReel.SetValue(Credits)
+End Sub
+
+Sub AddBonus()
+	bonuscountdown = bonuscounter
+	ScoreBonus.Enabled = True
+End Sub
+
+Sub ToggleOutlane
+	'
+End Sub
+
+Sub ToggleBumper
+	'
+End Sub
+
+Sub ToggleAltRelay
+	If AltRelayValue = 1 Then
+		AltRelayValue = 0
+	Else
+		AltRelayValue = 1
+	End If
+End Sub
+
+Sub ResetBallDrops ()
+	BonusCounter = 0
+	HoleCounter = 0
+End Sub
+
+Sub LightsOut
+	BonusCounter = 0
+	HoleCounter = 0
+End Sub
+
+Sub ResetDrops()
+	LowerTargetLeft.IsDropped = False
+	LowerTargetRight.IsDropped = False
+	EMSPlayDropTargetResetSound
+End Sub
+
+Sub LightsOff
+	'
+End Sub
+
+Sub LightsOn
+	'
+End Sub
+
+Sub FireAlternatingRelay
+	'
+End Sub
+
+Sub ResetBalls ()
+	TempMultiCounter = BallsPerGame - BallInPlay
+	Bumper2Light.State = 0
+	Bumper3Light.State = 0
+	RightTargetFlag = False
+	LeftTargetFlag = False
+	BonusMultiplier = 1
+	If BallsPerGame = 3 Then
+		If LeftOutlaneLight.State = 1 Then LowerLeftTargetLight.State = 1
+		If RightOutlaneLight.State = 1 Then LowerRightTargetLight.State = 1
+	End If
+	Select Case StartGameState
+		Case 0:
+			If BallInPlay >= 4 Then
+				If LeftOutlaneLight.State = 1 Then LowerLeftTargetLight.State = 1
+				If RightOutlaneLight.State = 1 Then LowerRightTargetLight.State = 1
+			End If
+		Case 1:
+			If BallInPlay = 5 Then
+				If LeftOutlaneLight.State = 1 Then LowerLeftTargetLight.State = 1
+				If RightOutlaneLight.State = 1 Then LowerRightTargetLight.State = 1
+			End If
+		Case 2:
+			LowerLeftTargetLight.State = 0
+			LowerRightTargetLight.State = 0
+	End Select
+	TableTilted = False
+	TiltReel.SetValue(0)
+	PlasticsOn
+	
+	'CreateBallID BallRelease
+	Ballrelease.CreateSizedBall 25
+	Ballrelease.Kick 40, 7
+	DOF 233,2
+	'InstructCard.Image = "IC"+FormatNumber(BallsPerGame,0)+FormatNumber(BallInPlay,0)
+	BallInPlayReel.SetValue(BallInPlay)
+End Sub
+
+Sub delaykgclose_timer
+	delaykgclose.Enabled = False
+	closeg.Enabled = True
+End Sub
+
+Sub openg_timer
+	bottgate(bgpos).IsDropped = True
+	bgpos = bgpos-1
+	bottgate(bgpos).IsDropped = False
+	primgate.RotY = 30 + (bgpos * 10)
+	If bgpos = 0 Then
+		EMSPlaySoundAtVolumeForObject "postup", 1.0, openg
+'		playsound "postup"
+		openg.Enabled = False
+		dooralreadyopen = 1
+	End If
+End Sub 
+
+Sub closeg_timer
+	closeg.Interval = 10
+	bottgate(bgpos).IsDropped = True
+	bgpos = bgpos + 1
+	bottgate(bgpos).IsDropped = False 
+	primgate.RotY = 30 + (bgpos * 10)
+	If bgpos = 6 Then
+		closeg.Enabled = False
+		dooralreadyopen = 0
+	End If
+End Sub
+
+Sub resettimer_timer
+	rst = rst + 1
+	If rst > 1 And rst < 20 Then
+		ResetReelsToZero 1
+	End If
+	
+	If rst = 13 Then
+	'playsound "StartBall1"
+	End If
+	If rst >= 24 Then
+		newgame
+		'newgame
+		resettimer.Enabled = False
+	End If
+End Sub
+
+Sub ResetReelsToZero (reelzeroflag)
+	Dim d1(5)
+	Dim d2(5)
+	Dim scorestring1, scorestring2
+	
+	If reelzeroflag = 1 Then
+		scorestring1 = CStr (Score(1))
+		scorestring2 = CStr (Score(2))
+		scorestring1 = Right ("00000" & scorestring1, 5)
+		scorestring2 = Right ("00000" & scorestring2, 5)
+		For i = 0 To 4
+			d1(i) = CInt (Mid (scorestring1, i + 1, 1))
+			d2(i) = CInt (Mid (scorestring2, i + 1, 1))
+		Next
+		For i = 0 To 4
+			If d1(i) > 0 Then 
+				d1(i) = d1(i) + 1
+				If d1(i) > 9 Then d1(i) = 0
+			End If
+			If d2(i) > 0 Then 
+				d2(i) = d2(i) + 1
+				If d2(i) > 9 Then d2(i) = 0
+			End If
+		Next
+		Score(1) = (d1(0) * 10000) + (d1(1) * 1000) + (d1(2) * 100) + (d1(3) * 10) + d1(4)
+		Score(2) = (d2(0) * 10000) + (d2(1) * 1000) + (d2(2) * 100) + (d2(3) * 10) + d2(4)
+		If B2SOn Then
+			Controller.B2SSetScorePlayer 1, Score(1)
+			Controller.B2SSetScorePlayer 2, Score(2)
+		End If
+		PlayerScores(0).SetValue(Score(1))
+		PlayerScoresOn(0).SetValue(Score(1))
+		PlayerScores(1).SetValue(Score(2))
+		PlayerScoresOn(1).SetValue(Score(2))
+	End If
+	If reelzeroflag = 2 Then
+		scorestring1 = CStr (Score(2))
+		scorestring1 = Right ("00000" & scorestring1,5)
+		For i = 0 To 4
+			d1(i) = CInt (Mid (scorestring1, i + 1, 1))
+		Next
+		For i = 0 To 4
+			If d1(i) > 0 Then 
+				d1(i) = d1(i) + 1
+				If d1(i) > 9 Then d1(i) = 0
+			End If
+		Next
+		Score(2) = (d1(0) * 10000) + (d1(1) * 1000) + (d1(2) * 100) + (d1(3) * 10) + d1(4)
+		If B2SOn Then
+			Controller.B2SSetScorePlayer 2, Score(2)
+		End If
+		PlayerScores(1).SetValue(Score(2))
+		PlayerScoresOn(1).SetValue(Score(2))
+	End If
+End Sub
+
+Sub ScoreBonus_timer
+	If (Bonus(bonuscountdown).State = 1) And (bonuscountdown > 0) Then
+		AddScore2 1000
+		Bonus(bonuscountdown).State = 0
+		If BonusMultiplier = 1 Then
+			ScoreBonus.Interval = 300
+		Else
+			ScoreBonus.Interval = 300
+		End If
+	Else
+		ScoreBonus.Interval = 10
+	End If
+	bonuscountdown = bonuscountdown - 1
+	If bonuscountdown <= 0 Then
+		ScoreBonus.Enabled = False
+		ScoreBonus.Interval = 600
+		NextBallDelay.Enabled = True
+	Else
+		Bonus(bonuscountdown).State = 1
+	End If
+End Sub
+
+Sub NextBallDelay_timer ()
+	If KickoffFlag = True Then Exit Sub
+	NextBallDelay.Enabled = False
+	nextball
+End Sub
+
+Sub NewGameHoldTimer_timer
+	If KickoffFlag = True Then Exit Sub
+	NewGameHoldTimer.Enabled = False
+	newgame
+End Sub
+
+Sub newgame
+	InProgress = True
+	debugscore = 0
+	EMReel1.ResetToZero
+	EMReel2.ResetToZero
+	MatchTextBox.Text = ""
+	'BallTextBox.Text = FormatNumber(BallInPlay,0)
+	For i = 1 To 2
+		Score(i) = 0
+		Score100K(1) = 0
+		HighScorePaid(i) = False
+		Replay1Paid(i) = False
+		Replay2Paid(i) = False
+		Replay3Paid(i) = False
+		Replay4Paid(i) = False
+		ReplayBalls1Paid(i) = False
+		ReplayBalls2Paid(i) = False
+		ReplayBalls3Paid(i) = False
+	Next
+	If B2SOn Then
+		Controller.B2SSetTilt 0
+		Controller.B2SSetGameOver 0
+		Controller.B2SSetMatch 0
+		Controller.B2SSetScorePlayer1 0
+		Controller.B2SSetScorePlayer2 0
+'		Controller.B2SSetScorePlayer3 0
+'		Controller.B2SSetScorePlayer4 0
+		Controller.B2SSetBallInPlay BallInPlay
+	End If
+	
+	AltRelayValue = 1
+	BaseHit = 0
+	BaseHitCounter = 0
+	SpecialsFlag = False
+	Bumper1Light.State = 1
+	Bumper2Light.State = 0
+	Bumper3Light.State = 0
+	Bumper6Light.State = 1
+	Bumper7Light.State = 1
+	BumpersOn
+	For Each obj In TeacherLights
+		obj.State = 1
+	Next
+	For Each obj In TeacherBGLights
+		obj.State = 0
+	Next
+	For Each obj In TargetLights
+		obj.State = 0
+	Next
+	If B2SOn Then
+		For i = 61 To 72
+			Controller.B2SSetData i, 0
+		Next
+	End If
+	LightTop1.State = 1
+	LightTop2.State = 1
+	LightTop3.State = 1
+	LightTop4.State = 1
+	CheckTeacher
+	Check123
+	ResetDrops
+	ResetBalls
+	EMSPlayStartBallSound 0
+End Sub
+
+Sub nextball
+'	If B2SOn Then
+'		Controller.B2SSetTilt 0
+'	End If
+	Player = Player+1
+	If Player > Players Then
+		BallInPlay = BallInPlay + 1
+		If BallInPlay > BallsPerGame Then
+			EMSPlayMotorLeerSound
+			InProgress = False
+			If B2SOn Then
+				Controller.B2SSetGameOver 1
+				Controller.B2SSetPlayerUp 0
+				Controller.B2SSetBallInPlay 0
+				Controller.B2SSetCanPlay 0
+			End If
+			For Each obj In PlayerHuds
+				obj.SetValue(0)
+			Next
+			For Each obj In PlayerHUDScores
+				obj.State = 0
+			Next
+			If Table1.ShowDT = True Then
+				For Each obj In PlayerScores
+					obj.Visible = 1
+				Next
+				For Each obj In PlayerScoresOn
+					obj.Visible = 0
+				Next
+			End If
+						
+			BallInPlayReel.SetValue(0)
+			CanPlayReel.SetValue(0)
+			GameOverReel.SetValue(1)
+			LeftFlipper.RotateToStart
+			RightFlipper.RotateToStart
+			LightsOut
+			PlasticsOff
+			BallTextBox.Text = ""
+			If TableTilted = False Then
+				checkmatch
+			End If
+			CheckHighScore
+			Players = 0
+			HighScoreTimer.Interval = 100
+			HighScoreTimer.Enabled = True
+		Else
+			Player = 1
+			If B2SOn Then
+				Controller.B2SSetPlayerUp Player
+				Controller.B2SSetBallInPlay BallInPlay
+			End If
+'			PlaySound("RotateThruPlayers")
+			TempPlayerUp = Player
+			PlayerUpRotator.Enabled = True
+			PlayStartBall.Enabled = True
+			For Each obj In PlayerHuds
+				obj.SetValue(0)
+			Next
+			For Each obj In PlayerHUDScores
+				obj.State = 0
+			Next
+			If Table1.ShowDT = True Then
+				For Each obj In PlayerScores
+					obj.Visible = 1
+				Next
+				For Each obj In PlayerScoresOn
+					obj.Visible = 0
+				Next
+				PlayerHuds(Player - 1).SetValue(1)
+				PlayerHUDScores(Player - 1).State = 1
+				PlayerScores(Player - 1).Visible = 0
+				PlayerScoresOn(Player - 1).Visible = 1
+				PlayerHuds(Player).SetValue(1)
+				PlayerHUDScores(Player).State = 1
+				PlayerScores(Player).Visible = 0
+				PlayerScoresOn(Player).Visible = 1
+			End If
+			ResetBalls
+		End If
+	Else 
+		If B2SOn Then
+			Controller.B2SSetPlayerUp Player
+			Controller.B2SSetBallInPlay BallInPlay
+		End If
+'		PlaySound("RotateThruPlayers")
+		TempPlayerUp = Player
+'		PlayerUpRotator.Enabled = True
+		PlayStartBall.Enabled = True
+		For Each obj In PlayerHuds
+			obj.SetValue(0)
+		Next
+		If Table1.ShowDT = True Then
+			For Each obj In PlayerScores
+				obj.Visible = 1
+			Next
+			For Each obj In PlayerScoresOn
+				obj.Visible = 0
+			Next
+			PlayerHuds(Player - 1).SetValue(1)
+			PlayerHUDScores(Player - 1).State = 1
+			PlayerScores(Player - 1).Visible = 0
+			PlayerScoresOn(Player - 1).Visible = 1
+			PlayerHuds(Player).SetValue(1)
+			PlayerHUDScores(Player).State = 1
+			PlayerScores(Player).Visible = 0
+			PlayerScoresOn(Player).Visible = 1
+		End If
+		ResetBalls
+	End If
+End Sub
+
+Sub CheckHighScore
+	Dim playertops
+	Dim si
+	Dim sj
+	Dim stemp
+	Dim stempplayers
+	For i = 1 To 4
+		sortscores(i) = 0
+		sortplayers(i) = 0
+		sortpoints(i) = 0
+		sortplayerpoints(i) = 0
+	Next
+	playertops = 0
+	For i = 1 To Players
+		sortscores(i) = Score(i)
+		sortplayers(i) = i
+		sortplayerpoints(i) = i
+		sortpoints(i) = Score(i+1)
+	Next
+	ScoreChecker = 5
+	CheckAllScores = 1
+	CheckAllPoints = 0
+	NewHighScore sortscores(ScoreChecker - 1), sortplayers(ScoreChecker - 1)
+	savehs
+End Sub
+
+Sub checkmatch
+	Dim tempmatch
+	tempmatch = Int (Rnd * 10)
+	Match = tempmatch
+	MatchReel.SetValue(tempmatch + 1)
+	If Match = 0 Then
+		MatchTextBox.Text = "Match: 0"
+	Else
+		MatchTextBox.Text = "Match: " + FormatNumber (Match, 0)
+	End If
+	If B2SOn Then
+		If Match = 0 Then
+			Controller.B2SSetMatch 10
+		Else
+			Controller.B2SSetMatch Match
+		End If
+	End If
+	For i = 1 To Players
+		If Match = (Score(i) Mod 10) Then
+			AddSpecial
+		End If
+	Next
+End Sub
+
+Sub TiltTimer_Timer ()
+	If TiltCount > 0 Then TiltCount = TiltCount - 1
+	If TiltCount = 0 Then
+		TiltTimer.Enabled = False
+	End If
+End Sub
+
+Sub TiltIt ()
+	TiltCount = TiltCount + 1
+	If TiltCount = 3 Then
+		TableTilted = True
+		PlasticsOff
+		BumpersOff
+		LeftFlipper.RotateToStart
+		RightFlipper.RotateToStart
+		TiltReel.SetValue(1)
+		If B2Son Then
+			Controller.B2SSetTilt 1
+		End If
+		BallInPlay = BallsPerGame
+	Else
+		TiltTimer.Interval = 500
+		TiltTimer.Enabled = True
+	End If
+End Sub
+
+Sub IncreaseBonus()
+	If BonusCounter = 10 Then
+		'		
+	Else
+		If BonusCounter > 0 Then
+			Bonus(BonusCounter).State = 0
+		End If
+		BonusCounter = BonusCounter + 1
+		Bonus(BonusCounter).State = 1
+'		PlaySound("Score100")
+	End If
+	If BonusCounter = 10 Then
+		TopLeftTargetLight.State = 1
+		TopRightTargetLight.State = 1
+	End If
+End Sub
+
+Sub BonusBoost_Timer ()
+	IncreaseBonus
+	BonusBoosterCounter = BonusBoosterCounter - 1
+	If BonusBoosterCounter = 0 Then
+		BonusBoost.Enabled = False
+	End If
+End Sub
+
+Sub CheckForLightSpecial()
+	If (TopLightA.State = 0) And (TopLightB.State = 0) And (TopLightC.State = 0) Then
+		TopRightTargetLight.State = 1
+		TopLeftTargetLight.State = 1
+	End If
+End Sub
+
+Sub PlayStartBall_timer()
+	PlayStartBall.Enabled = False
+	EMSPlayStartBallSound 1
+End Sub
+
+Sub PlayerUpRotator_timer()
+	Exit Sub
+	If RotatorTemp < 5 Then
+		TempPlayerUp = TempPlayerUp + 1
+		If TempPlayerUp > 4 Then
+			TempPlayerUp = 1
+		End If
+		For Each obj In PlayerHuds
+			obj.SetValue(0)
+		Next
+		For Each obj In PlayerHUDScores
+			obj.State = 0
+		Next
+		If Table1.ShowDT = True Then
+			For Each obj In PlayerScores
+				obj.Visible = 1
+			Next
+			For Each obj In PlayerScoresOn
+				obj.Visible = 0
+			Next
+			PlayerHuds(TempPlayerUp - 1).SetValue(1)
+			
+			PlayerScores(TempPlayerUp - 1).Visible = 0
+			PlayerScoresOn(TempPlayerUp - 1).Visible = 1
+		End If
+		If B2SOn Then
+			Controller.B2SSetPlayerUp TempPlayerUp
+			Controller.B2SSetData 81, 0
+			Controller.B2SSetData 82, 0
+			Controller.B2SSetData 83, 0
+			Controller.B2SSetData 84, 0
+			Controller.B2SSetData 80 + TempPlayerUp, 1
+		End If
+	Else
+		If B2SOn Then
+			Controller.B2SSetPlayerUp Player
+			Controller.B2SSetData 81, 0
+			Controller.B2SSetData 82, 0
+			Controller.B2SSetData 83, 0
+			Controller.B2SSetData 84, 0
+			Controller.B2SSetData 80 + Player, 1
+		End If
+		PlayerUpRotator.Enabled = False
+		RotatorTemp = 1
+		For Each obj In PlayerHuds
+			obj.SetValue(0)
+		Next
+		For Each obj In PlayerHUDScores
+			obj.State = 0
+		Next
+		If Table1.ShowDT = True Then
+			For Each obj In PlayerScores
+				obj.Visible = 1
+			Next
+			For Each obj In PlayerScoresOn
+				obj.Visible = 0
+			Next
+			PlayerHuds(Player - 1).SetValue(1)
+			PlayerScores(Player - 1).Visible = 0
+			PlayerScoresOn(Player - 1).Visible = 1
+		End If
+	End If
+	RotatorTemp = RotatorTemp + 1
+End Sub
+
+Sub savehs
+	' Based on Black's Highscore routines
+	Dim FileObj
+	Dim ScoreFile
+	Set FileObj = CreateObject ("Scripting.FileSystemObject")
+	If Not FileObj.FolderExists (UserDirectory) Then 
+		Exit Sub
+	End If
+	On Error Resume Next
+	Set ScoreFile = FileObj.CreateTextFile (UserDirectory & HSFileName, True)
+	ScoreFile.WriteLine 1
+	ScoreFile.WriteLine Credits
+	scorefile.writeline BallsPerGame
+	ScoreFile.WriteLine ReplayLevel
+	ScoreFile.WriteLine ReplayBalls
+	ScoreFile.WriteLine StartGameState
+	For xx = 1 To 5
+		scorefile.writeline HSScore(xx)
+	Next
+	For xx = 1 To 5
+		scorefile.writeline HSName(xx)
+	Next
+	For xx = 6 To 10
+		scorefile.writeline HSScore(xx)
+	Next
+	For xx = 6 To 10
+		scorefile.writeline HSName(xx)
+	Next
+	ScoreFile.Close
+	Set ScoreFile = Nothing
+	Set FileObj = Nothing
+End Sub
+
+Sub loadhs
+	' Based on Black's Highscore routines
+	Dim FileObj
+	Dim ScoreFile
+	Dim temp1
+	Dim temp2
+	Dim temp3
+	Dim temp4
+	Dim temp5
+	Dim temp6
+	Dim temp8
+	Dim temp9
+	Dim temp10
+	Dim temp11
+	Dim temp12
+	Dim temp13
+	Dim temp14
+	Dim temp15
+	Dim temp16
+	Dim temp17
+	Dim temp18
+	Dim temp19
+	Dim temp20
+	Dim temp21
+	Dim temp22
+	Dim temp23
+	Dim temp24
+	Dim temp25
+	Dim temp26
+	Dim temp27
+	
+	Set FileObj = CreateObject ("Scripting.FileSystemObject")
+	If Not FileObj.FolderExists (UserDirectory) Then 
+		Exit Sub
+	End If
+	If Not FileObj.FileExists (UserDirectory & HSFileName) Then
+		Exit Sub
+	End If
+	Set ScoreFile = FileObj.GetFile (UserDirectory & HSFileName)
+	Set TextStr = ScoreFile.OpenAsTextStream (1, 0)
+	If (TextStr.AtEndOfStream = True) Then
+		Exit Sub
+	End If
+	temp1 = TextStr.ReadLine
+	temp2 = textstr.ReadLine
+	temp3 = textstr.ReadLine
+	temp4 = textstr.ReadLine
+	temp5 = textstr.ReadLine
+	temp6 = textstr.ReadLine
+	HighScore = CDbl (temp1)
+	If HighScore = 1 Then
+		temp8 = textstr.ReadLine
+		temp9 = textstr.ReadLine
+		temp10 = textstr.ReadLine
+		temp11 = textstr.ReadLine
+		temp12 = textstr.ReadLine
+		temp13 = textstr.ReadLine
+		temp14 = textstr.ReadLine
+		temp15 = textstr.ReadLine
+		temp16 = textstr.ReadLine
+		temp17 = textstr.ReadLine
+		temp18 = textstr.ReadLine
+		temp19 = textstr.ReadLine
+		temp20 = textstr.ReadLine
+		temp21 = textstr.ReadLine
+		temp22 = textstr.ReadLine
+		temp23 = textstr.ReadLine
+		temp24 = textstr.ReadLine
+		temp25 = textstr.ReadLine
+		temp26 = textstr.ReadLine
+		temp27 = textstr.ReadLine
+	End If
+	TextStr.Close
+	If HighScore = 1 Then
+		Credits = CDbl (temp2)
+		BallsPerGame = CDbl (temp3)
+		ReplayLevel = CDbl (temp4)
+		ReplayBalls = CDbl (temp5)
+		StartGameState = CDbl (temp6)
+		HSScore(1) = Int (temp8)
+		HSScore(2) = Int (temp9)
+		HSScore(3) = Int (temp10)
+		HSScore(4) = Int (temp11)
+		HSScore(5) = Int (temp12)
+		
+		HSName(1) = temp13
+		HSName(2) = temp14
+		HSName(3) = temp15
+		HSName(4) = temp16
+		HSName(5) = temp17
+		
+		HSScore(6) = Int (temp18)
+		HSScore(7) = Int (temp19)
+		HSScore(8) = Int (temp20)
+		HSScore(9) = Int (temp21)
+		HSScore(10) = Int (temp22)
+		
+		HSName(6) = temp23
+		HSName(7) = temp24
+		HSName(8) = temp25
+		HSName(9) = temp26
+		HSName(10) = temp27
+	End If
+	Set ScoreFile = Nothing
+	Set FileObj = Nothing
+End Sub
+
+Sub SaveLMEMConfig
+	Dim FileObj
+	Dim LMConfig
+	Dim temp1
+	Dim tempb2s
+	tempb2s = 0
+	If B2SOn = True Then
+		tempb2s = 1
+	Else
+		tempb2s = 0
+	End If
+	Set FileObj = CreateObject ("Scripting.FileSystemObject")
+	If Not FileObj.FolderExists (UserDirectory) Then 
+		Exit Sub
+	End If
+	On Error Resume Next
+	Set LMConfig = FileObj.CreateTextFile (UserDirectory & LMEMTableConfig, True)
+	LMConfig.WriteLine tempb2s
+	LMConfig.Close
+	Set LMConfig = Nothing
+	Set FileObj = Nothing
+End Sub
+
+Sub LoadLMEMConfig
+	Dim FileObj
+	Dim LMConfig
+	Dim tempC
+	Dim tempb2s
+	
+	Set FileObj = CreateObject ("Scripting.FileSystemObject")
+	If Not FileObj.FolderExists (UserDirectory) Then 
+		Exit Sub
+	End If
+	If Not FileObj.FileExists (UserDirectory & LMEMTableConfig) Then
+		Exit Sub
+	End If
+	Set LMConfig = FileObj.GetFile (UserDirectory & LMEMTableConfig)
+	Set TextStr2 = LMConfig.OpenAsTextStream (1, 0)
+	If (TextStr2.AtEndOfStream = True) Then
+		Exit Sub
+	End If
+	tempC = TextStr2.ReadLine
+	TextStr2.Close
+	tempb2s = CDbl (tempC)
+	If tempb2s = 0 Then
+		B2SOn = False
+	Else
+		B2SOn = True
+	End If
+	Set LMConfig = Nothing
+	Set FileObj = Nothing
+End Sub
+
+Sub SaveLMEMConfig2
+	If ShadowConfigFile = False Then Exit Sub
+	Dim FileObj
+	Dim LMConfig2
+	Dim temp1
+	Dim temp2
+	Dim tempBS
+	Dim tempFS
+	
+	If EnableBallShadow = True Then
+		tempBS = 1
+	Else
+		tempBS = 0
+	End If
+	If EnableFlipperShadow = True Then
+		tempFS = 1
+	Else
+		tempFS = 0
+	End If
+	
+	Set FileObj = CreateObject ("Scripting.FileSystemObject")
+	If Not FileObj.FolderExists (UserDirectory) Then 
+		Exit Sub
+	End If
+	On Error Resume Next
+	Set LMConfig2 = FileObj.CreateTextFile (UserDirectory & LMEMShadowConfig, True)
+	LMConfig2.WriteLine tempBS
+	LMConfig2.WriteLine tempFS
+	LMConfig2.Close
+	Set LMConfig2 = Nothing
+	Set FileObj = Nothing
+End Sub
+
+Sub LoadLMEMConfig2
+	If ShadowConfigFile = False Then
+		EnableBallShadow = ShadowBallOn
+		BallShadowUpdate.Enabled = ShadowBallOn
+		EnableFlipperShadow = ShadowFlippersOn
+		FlipperLSh.Visible = ShadowFlippersOn
+		FlipperRSh.Visible = ShadowFlippersOn
+		Exit Sub
+	End If
+	Dim FileObj
+	Dim LMConfig2
+	Dim tempC
+	Dim tempD
+	Dim tempFS
+	Dim tempBS
+	
+	Set FileObj = CreateObject ("Scripting.FileSystemObject")
+	If Not FileObj.FolderExists (UserDirectory) Then 
+		Exit Sub
+	End If
+	If Not FileObj.FileExists (UserDirectory & LMEMShadowConfig) Then
+		Exit Sub
+	End If
+	Set LMConfig2 = FileObj.GetFile (UserDirectory & LMEMShadowConfig)
+	Set TextStr2 = LMConfig2.OpenAsTextStream (1, 0)
+	If (TextStr2.AtEndOfStream = True) Then
+		Exit Sub
+	End If
+	tempC = TextStr2.ReadLine
+	tempD = TextStr2.Readline
+	TextStr2.Close
+	tempBS = CDbl (tempC)
+	tempFS = CDbl (tempD)
+	If tempBS = 0 Then
+		EnableBallShadow = False
+		BallShadowUpdate.Enabled = False
+	Else
+		EnableBallShadow = True
+	End If
+	If tempFS = 0 Then
+		EnableFlipperShadow = False
+		FlipperLSh.Visible = False
+		FLipperRSh.Visible = False
+	Else
+		EnableFlipperShadow = True
+	End If
+	Set LMConfig2 = Nothing
+	Set FileObj = Nothing
+End Sub
+
+Sub DisplayHighScore
+	'
+End Sub
+
+Sub InitPauser5_timer
+	If B2SOn Then
+		'Controller.B2SSetScore 4,HighScore
+	End If
+	DisplayHighScore
+	InitPauser5.Enabled = False
+End Sub
+
+Sub ResetDropsTimer_timer
+	ResetDropsTimer.Enabled = 0
+	ResetDrops
+End Sub
+
+Sub BumpersOff
+	Bumper1Light.Visible = 0
+	Bumper2Light.Visible = 0
+	Bumper3Light.Visible = 0
+	Bumper6Light.Visible = 0
+	Bumper7Light.Visible = 0
+End Sub
+
+Sub BumpersOn
+	Bumper1Light.Visible = 1
+	Bumper2Light.Visible = 1
+	Bumper3Light.Visible = 1
+	Bumper6Light.Visible = 1
+	Bumper7Light.Visible = 1
+End Sub
+
+Sub PlasticsOn
+	For Each obj In Flashers
+		obj.Visible = 1
+	Next		
+End Sub
+
+Sub PlasticsOff
+	For Each obj In Flashers
+		obj.Visible = 0
+	Next
+	StopSound "buzz"
+	StopSound "buzzL"
+End Sub
+
+Sub SetupReplayTables
+	Replay1Table(1) = 1600
+	Replay1Table(2) = 1700
+	Replay1Table(3) = 1800
+	Replay1Table(4) = 1800
+	Replay1Table(5) = 2100
+	Replay1Table(6) = 2200
+	Replay1Table(7) = 2300
+	Replay1Table(8) = 2400
+	Replay1Table(9) = 2500
+	Replay1Table(10) = 2600
+	Replay1Table(11) = 2700
+	Replay1Table(12) = 2800
+	Replay1Table(13) = 2900
+	Replay1Table(14) = 3000
+	Replay1Table(15) = 3800
+	Replay1Table(16) = 3900
+	Replay1Table(17) = 4000
+	
+	Replay2Table(1) = 2400
+	Replay2Table(2) = 2600
+	Replay2Table(3) = 2400
+	Replay2Table(4) = 2400
+	Replay2Table(5) = 3200
+	Replay2Table(6) = 3300
+	Replay2Table(7) = 3400
+	Replay2Table(8) = 3500
+	Replay2Table(9) = 3600
+	Replay2Table(10) = 3700
+	Replay2Table(11) = 3800
+	Replay2Table(12) = 3900
+	Replay2Table(13) = 4100
+	Replay2Table(14) = 4100
+	Replay2Table(15) = 5100
+	Replay2Table(16) = 5100
+	Replay2Table(17) = 5100
+	
+	Replay3Table(1) = 3000
+	Replay3Table(2) = 3200
+	Replay3Table(3) = 2700
+	Replay3Table(4) = 3000
+	Replay3Table(5) = 4600
+	Replay3Table(6) = 4600
+	Replay3Table(7) = 4600
+	Replay3Table(8) = 4600
+	Replay3Table(9) = 4700
+	Replay3Table(10) = 4800
+	Replay3Table(11) = 4900
+	Replay3Table(12) = 5100
+	Replay3Table(13) = 5200
+	Replay3Table(14) = 5200
+	Replay3Table(15) = 6000
+	Replay3Table(16) = 6000
+	Replay3Table(17) = 6200
+	
+	Replay4Table(1) = 3800
+	Replay4Table(2) = 3800
+	Replay4Table(3) = 3000
+	Replay4Table(4) = 3600
+	Replay4Table(5) = 5700
+	Replay4Table(6) = 5700
+	Replay4Table(7) = 5700
+	Replay4Table(8) = 5700
+	Replay4Table(9) = 5800
+	Replay4Table(10) = 5900
+	Replay4Table(11) = 6000
+	Replay4Table(12) = 6200
+	Replay4Table(13) = 6300
+	Replay4Table(14) = 6300
+	Replay4Table(15) = 7300
+	Replay4Table(16) = 7300
+	Replay4Table(17) = 7300
+	
+	ReplayTableMax = 17
+	
+	ReplayBallsTable1(1) = 20
+	ReplayBallsTable1(2) = 26
+	ReplayBallsTable1(3) = 11
+	ReplayBallsTable1(4) = 11
+	ReplayBallsTable1(5) = 12
+	ReplayBallsTable1(6) = 16
+	ReplayBallsTable1(7) = 17
+	ReplayBallsTable1(8) = 18
+	ReplayBallsTable1(9) = 19
+	ReplayBallsTable1(10) = 19
+	ReplayBallsTable1(11) = 99
+	ReplayBallsTable1(12) = 99
+	ReplayBallsTable1(13) = 99
+	ReplayBallsTable1(14) = 99
+	ReplayBallsTable1(15) = 99
+	ReplayBallsTable1(16) = 99
+	
+	ReplayBallsTable2(1) = 99
+	ReplayBallsTable2(2) = 99
+	ReplayBallsTable2(3) = 15
+	ReplayBallsTable2(4) = 16
+	ReplayBallsTable2(5) = 15
+	ReplayBallsTable2(6) = 22
+	ReplayBallsTable2(7) = 22
+	ReplayBallsTable2(8) = 23
+	ReplayBallsTable2(9) = 23
+	ReplayBallsTable2(10) = 24
+	ReplayBallsTable2(11) = 99
+	ReplayBallsTable2(12) = 99
+	ReplayBallsTable2(13) = 99
+	ReplayBallsTable2(14) = 99
+	ReplayBallsTable2(15) = 99
+	ReplayBallsTable2(16) = 99
+	
+	ReplayBallsTable3(1) = 99
+	ReplayBallsTable3(2) = 99
+	ReplayBallsTable3(3) = 17
+	ReplayBallsTable3(4) = 18
+	ReplayBallsTable3(5) = 17
+	ReplayBallsTable3(6) = 28
+	ReplayBallsTable3(7) = 28
+	ReplayBallsTable3(8) = 29
+	ReplayBallsTable3(9) = 28
+	ReplayBallsTable3(10) = 30
+	ReplayBallsTable3(11) = 99
+	ReplayBallsTable3(12) = 99
+	ReplayBallsTable3(13) = 99
+	ReplayBallsTable3(14) = 99
+	ReplayBallsTable3(15) = 99
+	ReplayBallsTable3(16) = 99
+	
+	ReplayBallsTableMax = 2
+End Sub
+
+Sub RefreshReplayCard
+	Dim tempst1
+	Dim tempst2
+	Dim tempst3
+	
+	tempst1 = FormatNumber(BallsPerGame, 0)
+	tempst2 = FormatNumber(ReplayLevel, 0)
+	tempst3 = FormatNumber(ReplayBalls, 0)
+	
+	ReplayCard.Image = "IC"
+	ReplayCard1.Image = "SC" + tempst2
+	ReplayCard2.Image = "BC" + tempst1
+	
+	Replay1 = Replay1Table(ReplayLevel)
+	Replay2 = Replay2Table(ReplayLevel)
+	Replay3 = Replay3Table(ReplayLevel)
+	Replay4 = Replay4Table(ReplayLevel)
+	BallReplay1 = ReplayBallsTable1(ReplayBalls)
+	BallReplay2 = ReplayBallsTable2(ReplayBalls)
+	BallReplay3 = ReplayBallsTable3(ReplayBalls)
+End Sub
+
+'****************************************
+' Score Motor
+'****************************************
+
+Sub AddRunToScore
+	Score(Player + 1) = Score(Player + 1) + 1
+	If B2SOn Then
+		Controller.B2SSetScorePlayer Player + 1, Score(Player + 1)
+	End If
+	PlayerScores(Player).SetValue(Score(Player + 1))
+	PlayerScoresOn(Player).SetValue(Score(Player + 1))
+	'PlaySound SoundFXDOF("SpinACard_100_Point_Bell",237,DOFPulse,DOFChimes)
+	If Score(Player + 1 ) >= BallReplay1 Then
+		SpecialsFlag = True
+	End If
+End Sub	
+
+ScoreMotorTimer.Enabled = 1
+ScoreMotorTimer.Interval = 135 '135
+AddScoreTimer.Enabled = 1
+AddScoreTimer.Interval = 135
+
+Dim queuedscore
+Dim MotorMode
+Dim MotorPosition
+
+Sub SetMotor(y)
+	Select Case ScoreMotorAdjustment
+		Case 0:
+			queuedscore = queuedscore+y
+		Case 1:
+			If MotorRunning<>1 And InProgress = True Then
+				queuedscore = queuedscore+y
+			End If
+	End Select
+End Sub
+
+Sub SetMotor2(x)
+	If MotorRunning <> 1 And InProgress = True Then
+		MotorRunning = 1
+		BaseHitCounter = BaseHit
+		LightsOff
+		Select Case x
+			Case 10:
+				AddScore 10
+				MotorRunning = 0
+				LightsOn
+			Case 20:
+				MotorMode = 10
+				MotorPosition = 2
+			Case 30:
+				MotorMode = 10
+				MotorPosition = 3
+			Case 40:
+				MotorMode = 10
+				MotorPosition = 4
+			Case 50:
+				MotorMode = 10
+				MotorPosition = 5
+			Case 100:
+				MotorMode = 100
+				MotorPosition = 1
+			Case 200:
+				MotorMode = 100
+				MotorPosition = 2
+			Case 300:
+				MotorMode = 100
+				MotorPosition = 3
+			Case 400:
+				MotorMode = 100
+				MotorPosition = 4
+			Case 500:
+				MotorMode = 100
+				MotorPosition = 5
+			Case 1000:
+				AddScore 1000
+				MotorRunning = 0
+				LightsOn
+			Case 2000:
+				MotorMode = 1000
+				MotorPosition = 2
+			Case 3000:
+				MotorMode = 1000
+				MotorPosition = 3
+			Case 4000:
+				MotorMode = 1000
+				MotorPosition = 4		
+			Case 5000:
+				MotorMode = 1000
+				MotorPosition = 5
+		End Select
+	End If
+End Sub
+
+Sub AddScoreTimer_Timer
+	Dim tempscore
+	If MotorRunning <> 1 And InProgress = True Then
+		If queuedscore >= 5000 Then
+			tempscore = 5000
+			queuedscore = queuedscore - 5000
+			SetMotor2 5000
+			Exit Sub
+		End If
+		If queuedscore >= 4000 Then
+			tempscore = 4000
+			queuedscore = queuedscore - 4000
+			SetMotor2 4000
+			Exit Sub
+		End If
+		If queuedscore >= 3000 Then
+			tempscore = 3000
+			queuedscore = queuedscore - 3000
+			SetMotor2 3000
+			Exit Sub
+		End If
+		If queuedscore >= 2000 Then
+			tempscore = 2000
+			queuedscore = queuedscore - 2000
+			SetMotor2 2000
+			Exit Sub
+		End If
+		If queuedscore >= 1000 Then
+			tempscore = 1000
+			queuedscore = queuedscore - 1000
+			SetMotor2 1000
+			Exit Sub
+		End If
+		
+		If queuedscore >= 500 Then
+			tempscore = 500
+			queuedscore = queuedscore - 500
+			SetMotor2 500
+			Exit Sub
+		End If
+		If queuedscore >= 400 Then
+			tempscore = 400
+			queuedscore = queuedscore - 400
+			SetMotor2 400
+			Exit Sub
+		End If
+		If queuedscore >= 300 Then
+			tempscore = 300
+			queuedscore = queuedscore - 300
+			SetMotor2 300
+			Exit Sub
+		End If
+		If queuedscore >= 200 Then
+			tempscore = 200
+			queuedscore = queuedscore - 200
+			SetMotor2 200
+			Exit Sub
+		End If
+		If queuedscore >= 100 Then
+			tempscore = 100
+			queuedscore = queuedscore - 100
+			SetMotor2 100
+			Exit Sub
+		End If
+		If queuedscore >= 50 Then
+			tempscore = 50
+			queuedscore = queuedscore - 50
+			SetMotor2 50
+			Exit Sub
+		End If
+		If queuedscore >= 40 Then
+			tempscore = 40
+			queuedscore = queuedscore - 40
+			SetMotor2 40
+			Exit Sub
+		End If
+		If queuedscore >= 30 Then
+			tempscore = 30
+			queuedscore = queuedscore - 30
+			SetMotor2 30
+			Exit Sub
+		End If
+		If queuedscore >= 20 Then
+			tempscore = 20
+			queuedscore = queuedscore - 20
+			SetMotor2 20
+			Exit Sub
+		End If
+		If queuedscore >= 10 Then
+			tempscore = 10
+			queuedscore = queuedscore - 10
+			SetMotor2 10
+			Exit Sub
+		End If
+	End If
+End Sub
+
+Sub ScoreMotorTimer_Timer
+	If MotorPosition > 0 Then
+		Select Case MotorPosition
+			Case 5, 4, 3, 2:
+				If BaseHitCounter > 0 Then
+					MoveRunners
+					BaseHitCounter = BaseHitCounter - 1
+				End If
+				If MotorMode = 1000 Then 
+					AddScore 1000
+				End If
+				If MotorMode = 100 Then
+					AddScore 100
+				End If
+				If MotorMode = 10 Then
+					AddScore 10
+				End If
+				MotorPosition = MotorPosition - 1
+			Case 1:
+				If BaseHitCounter > 0 Then
+					MoveRunners
+					BaseHitCounter = BaseHitCounter - 1
+				End If
+				Select Case BaseHit
+					Case 4:
+						AddRunToScore
+						BumpersOff
+					Case 3:
+						TargetLightBase3.State = 0
+						TargetLightBase31.State = 0
+						LightBase3.State = 1
+						LightTop1.State = 0
+						If B2SOn Then
+							Controller.B2SSetData 53, 1
+						End If
+						BaseRunner3.SetValue(1)
+						If LightBase3.State = 1 And LightBase2.State = 1 Then
+							BumpersOn
+						Else
+							BumpersOff
+						End If
+					Case 2:
+						LightBase2.State = 1
+						LightTop3.State = 0
+						TargetLightBase21.State = 0
+						TargetLightBase22.State = 0
+						TargetLightBase23.State = 0
+						TargetLightBase24.State = 0
+						LightTop3.State = 0
+						If B2SOn Then
+							Controller.B2SSetData 52, 1
+						End If
+						BaseRunner2.SetValue(1)
+						If LightBase3.State = 1 And LightBase2.State = 1 Then
+							BumpersOn
+						Else
+							BumpersOff
+						End If
+					Case 1:
+						TargetLightBase1.State = 0
+						TargetLightBase11.State = 0
+						LightBase1.State = 1
+						LightTop2.State = 0
+						If B2SOn Then
+							Controller.B2SSetData 51, 1
+						End If
+						BaseRunner1.SetValue(1)
+						If LightBase3.State = 1 And LightBase2.State = 1 Then
+							BumpersOn
+						Else
+							BumpersOff
+						End If
+				End Select
+				If MotorMode = 1000 Then 
+					AddScore 1000
+				End If
+				If MotorMode = 100 Then
+					AddScore 100
+				End If
+				If MotorMode = 10 Then
+					AddScore 10
+				End If
+				MotorPosition = 0 : MotorRunning = 0 : LightsOn : BaseHit = 0: BaseHitCounter = 0
+		End Select
+	End If
+End Sub
+
+Sub AddScore (x)
+	If TableTilted = True Then Exit Sub
+	ImpulseReelCount = ImpulseReelCount + 1
+	If ImpulseReelCount > 4 Then
+		ImpulseReelCount = 0
+	End If
+	Select Case ScoreAdditionAdjustment
+		Case 0:
+			AddScore1 x
+		Case 1:
+			AddScore2 x
+	End Select
+End Sub
+
+Sub AddScore1 (x)
+'	debugtext.Text = score
+	Select Case x
+		Case 1:
+			PlayChime(10)
+			Score(Player) = Score(Player) + 1
+		Case 10:
+			PlayChime(100)
+			Score(Player) = Score(Player)+10
+'			debugscore = debugscore+10
+		Case 100:
+			PlayChime(1000)
+			Score(Player) = Score(Player) + 100
+'			debugscore = debugscore+100
+		Case 1000:
+			PlayChime(1000)
+			Score(Player) = Score(Player) + 1000
+'			debugscore = debugscore+1000
+	End Select
+	PlayerScores(Player - 1).AddValue(x)
+	PlayerScoresOn(Player - 1).AddValue(x)
+	If ScoreDisplay(Player) < 100000 Then
+		ScoreDisplay(Player) = Score(Player)
+	Else
+		Score100K(Player) = Int (Score(Player) / 100000)
+		ScoreDisplay(Player) = Score(Player) - 100000
+	End If
+	If Score(Player) => 100000 Then
+		If B2SOn Then
+			If Player = 1 Then
+				Controller.B2SSetScoreRolloverPlayer1 Score100K(Player)
+			End If
+			If Player = 2 Then
+				Controller.B2SSetScoreRolloverPlayer2 Score100K(Player)
+			End If
+
+			If Player = 3 Then
+				Controller.B2SSetScoreRolloverPlayer3 Score100K(Player)
+			End If
+
+			If Player = 4 Then
+				Controller.B2SSetScoreRolloverPlayer4 Score100K(Player)
+			End If
+		End If
+	End If
+	If B2SOn Then
+		Controller.B2SSetScorePlayer Player, ScoreDisplay(Player)
+	End If
+	If Score(Player) > Replay1 And Replay1Paid(Player) = False Then
+		Replay1Paid(Player) = True
+		AddSpecial
+	End If
+	If Score(Player) > Replay2 And Replay2Paid(Player) = False Then
+		Replay2Paid(Player) = True
+		AddSpecial
+	End If
+	If Score(Player) > Replay3 And Replay3Paid(Player) = False Then
+		Replay3Paid(Player) = True
+		AddSpecial
+	End If
+'	ScoreText.Text = debugscore
+End Sub
+
+Sub AddScore2 (x)
+	Dim OldScore, NewScore, OldTestScore, NewTestScore
+	OldScore = Score(Player)
+	Select Case x
+		Case 1:
+			Score(Player) = Score(Player) + 1
+		Case 10:
+			Score(Player) = Score(Player) + 10
+		Case 100:
+			Score(Player) = Score(Player) + 100
+		Case 1000:
+			Score(Player) = Score(Player) + 1000
+	End Select
+	NewScore = Score(Player)
+	OldTestScore = OldScore
+	NewTestScore = NewScore
+	Do
+		If OldTestScore < Replay1 And NewTestScore >= Replay1 Then
+			AddSpecial
+			NewTestScore = 0
+		Elseif OldTestScore < Replay2 And NewTestScore >= Replay2 Then
+			AddSpecial
+			NewTestScore = 0
+		Elseif OldTestScore < Replay3 And NewTestScore >= Replay3 Then
+			AddSpecial
+			NewTestScore = 0
+		Elseif OldTestScore < Replay4 And NewTestScore >= Replay4 Then
+			AddSpecial
+			NewTestScore = 0
+		End If
+		NewTestScore = NewTestScore - 100000
+		OldTestScore = OldTestScore - 100000
+	Loop While NewTestScore > 0
+	
+	OldScore = Int (OldScore / 1)	' divide by 10 For games with fixed 0 In 1s position, by 1 For games with real 1s digits
+	NewScore = Int (NewScore / 1)	' divide by 10 For games with fixed 0 In 1s position, by 1 For games with real 1s digits
+	' MsgBox("OldScore = "&OldScore&", NewScore = "&NewScore&", OldScore Mod 10 = "&OldScore Mod 10 & ", NewScore % 10 = "&NewScore Mod 10)
+	
+	If (OldScore Mod 10 <> NewScore Mod 10) Then
+		'PlayChime(10)
+		ToggleAltRelay		
+	End If
+	
+	OldScore = Int (OldScore / 10)
+	NewScore = Int (NewScore / 10)
+	' MsgBox("OldScore = "&OldScore&", NewScore = "&NewScore)
+	If (OldScore Mod 10 <> NewScore Mod 10) Then
+		PlayChime(100)
+	End If
+	
+	OldScore = Int (OldScore / 10)
+	NewScore = Int (NewScore / 10)
+	' MsgBox("OldScore = "&OldScore&", NewScore = "&NewScore)
+	If (OldScore Mod 10 <> NewScore Mod 10) Then
+		PlayChime(100)
+	End If
+	
+	OldScore = Int (OldScore / 10)
+	NewScore = Int (NewScore / 10)
+	' MsgBox("OldScore = "&OldScore&", NewScore = "&NewScore)
+	If (OldScore Mod 10 <> NewScore Mod 10) Then
+		'PlayChime(1000)
+	End If
+	
+	If B2SOn Then
+		Controller.B2SSetScorePlayer Player, Score(Player)
+	End If
+'	EMReel1.SetValue Score(Player)
+	PlayerScores(Player - 1).AddValue(x)
+	PlayerScoresOn(Player - 1).AddValue(x)
+End Sub
+
+Sub PlayChime(x)
+	Select Case x
+		Case 1
+'			PlaySound SoundFXDOF("SpinACard_1_10_Point_Bell",234,DOFPulse,DOFChimes)
+			EMSPlayBellSound 0
+		Case 10, 100
+'			PlaySound SoundFXDOF("SpinACard_100_Point_Bell",235,DOFPulse,DOFChimes)
+			EMSPlayBellSound 1
+	End Select
+End Sub
+
+Sub HideOptions()
+	'
+End Sub
+
+'==================================================================================================
+'											   EM Sounds
+'==================================================================================================
+
+Const MASTER_VOLUME = 0.8					'value no greater than 1.
+Const PAN_TRANSFORM_EXPONENT = 10			'smaller value, less "spread" of audio channels
+Const FADE_TRANSFORM_EXPONENT = 10			'smaller value, less "spread" of audio channels
+Const MIN_SOUND_PAN_LEFT = -1.0
+Const SOUND_PAN_LEFT = -0.9
+Const SOUND_PAN_CENTER = 0.0
+Const SOUND_PAN_RIGHT = 0.9
+Const MAX_SOUND_PAN_RIGHT = 1.0
+Const MIN_SOUND_FADE_NEAR_BACKGLASS = -1.0
+Const SOUND_FADE_NEAR_BACKGLASS = -0.9
+Const SOUND_FADE_CENTER = 0.0
+Const SOUND_FADE_NEAR_PLAYER = 0.9
+Const MAX_SOUND_FADE_NEAR_PLAYER = 1.0
+Const DONT_LOOP_SOUND = 0
+Const LOOP_UNTIL_STOPPED = -1
+Const NO_RANDOM_PITCH = 0
+Const NO_PITCH_CHANGE = 0
+Const DONT_USE_EXISTING_SOUND = 0
+Const USE_EXISTING_SOUND = 1
+Const DONT_RESTART_SOUND = 0
+Const RESTART_SOUND = 1
+
+Dim TableWidth, TableHeight
+TableWidth = 1000							'reasonable defaults, 
+TableHeight = 2000							'but please call EMSInit() to get real values assigned
+
+' Pass table object, call before any sound is played
+Sub EMSInit (TableObj)
+	TableWidth = TableObj.Width
+	TableHeight = TableObj.Height
+End Sub
+
+'---------------------------------------------------------------------------- Play Positional Sound
+
+' Calculates the volume of the sound based on the ball speed
+Function EMSVolumeForBall (Ball)
+    EMSVolumeForBall = CSng (EMSBallVelocity (Ball) ^2)
+End Function
+
+' Scale pan so there is some bleed-over of left/right channels.
+' ex: with headphones you don't want the plunger only in the right ear.
+Function EMSTransformPan (Pan)
+	If Pan > 0 Then
+		EMSTransformPan = CSng (Pan ^ PAN_TRANSFORM_EXPONENT)
+	Else
+		EMSTransformPan = -CSng (Pan ^ PAN_TRANSFORM_EXPONENT)
+	End If
+End Function
+
+' Determines pan based on X position on table (-1 is table-left, 0 is table-center, 1 is table-right).
+Function EMSPanForTableX (X)
+    EMSPanForTableX = CSng((X * 2 / TableWidth) - 1)
+	If EMSPanForTableX < MIN_SOUND_PAN_LEFT Then
+		EMSPanForTableX = MIN_SOUND_PAN_LEFT
+	ElseIf EMSPanForTableX > MAX_SOUND_PAN_RIGHT Then
+		EMSPanForTableX = MAX_SOUND_PAN_RIGHT
+	End If
+End Function
+
+' Scale fade so there is some bleed-over between front/back channels.
+Function EMSTransformFade (Fade)
+	If Fade > 0 Then
+		EMSTransformFade = CSng (Fade ^ FADE_TRANSFORM_EXPONENT)
+	Else
+		EMSTransformFade = -CSng (Fade ^ FADE_TRANSFORM_EXPONENT)
+	End If
+End Function
+
+' Determines fade based on Y position on table (-1 is table-far, 0 is table-center, 1 is table-near).
+Function EMSFadeForTableY (Y)
+    EMSFadeForTableY = CSng((Y * 2 / TableHeight) - 1)
+	If EMSFadeForTableY < MIN_SOUND_FADE_NEAR_BACKGLASS Then
+		EMSFadeForTableY = MIN_SOUND_FADE_NEAR_BACKGLASS
+	ElseIf EMSFadeForTableY > MAX_SOUND_FADE_NEAR_PLAYER Then
+		EMSFadeForTableY = MAX_SOUND_FADE_NEAR_PLAYER
+	End If
+End Function
+
+' Plays sound SoundName at level Volume specifying pan of Pan and fade of Fade.
+Sub EMSPlaySoundAtVolumePanAndFade (SoundName, Volume, Pan, Fade)
+	PlaySound SoundName, DONT_LOOP_SOUND, Volume * MASTER_VOLUME, Pan, NO_RANDOM_PITCH, NO_PITCH_CHANGE, DONT_USE_EXISTING_SOUND, DONT_RESTART_SOUND, Fade
+End Sub
+
+' Plays sound SoundName at level Volume specifying pan and fade based on the position of ForObj on the table.
+Sub EMSPlaySoundAtVolumeForObject (SoundName, Volume, ForObj)
+	Dim Pan
+	Pan = EMSTransformPan (EMSPanForTableX (ForObj.X))
+	Dim fade
+	Fade = EMSTransformFade (EMSFadeForTableY (ForObj.Y))
+	EMSPlaySoundAtVolumePanAndFade SoundName, Volume, Pan, Fade
+End Sub
+
+' Plays sound SoundName at level Volume specifying pan and fade based on the position of the active ball on the table.
+Sub EMSPlaySoundAtVolumeForActiveBall (SoundName, Volume)
+	Dim Pan
+	Pan = EMSTransformPan (EMSPanForTableX (ActiveBall.X))
+	Dim Fade
+	Fade = EMSTransformFade (EMSFadeForTableY (ActiveBall.Y))
+	EMSPlaySoundAtVolumePanAndFade SoundName, Volume, Pan, Fade
+End Sub
+
+' Plays an existing sound SoundName at level Volume specifying pan of Pan and fade of Fade.
+Sub EMSPlaySoundExistingAtVolumePanAndFade (SoundName, Volume, Pan, Fade)
+	PlaySound soundName, DONT_LOOP_SOUND, Volume * MASTER_VOLUME, Pan, NO_RANDOM_PITCH, NO_PITCH_CHANGE, USE_EXISTING_SOUND, DONT_RESTART_SOUND, Fade
+End Sub
+
+' Plays an existing sound SoundName at level Volume specifying pan and fade based on the position of the active ball on the table.
+Sub EMSPlaySoundExistingAtVolumeForActiveBall (SoundName, Volume)
+	Dim Pan
+	Pan = EMSTransformPan (EMSPanForTableX (ActiveBall.X))
+	Dim Fade
+	Fade = EMSTransformFade (EMSFadeForTableY (ActiveBall.Y))
+	EMSPlaySoundExistingAtVolumePanAndFade SoundName, Volume, Pan, Fade
+End Sub
+
+' Loops a sound SoundName LoopCount times at level Volume specifying pan and fade based on the position of ForObj on the table.
+Sub EMSPlaySoundLoopedAtVolumeForObject (SoundName, LoopCount, Volume, ForObj)
+	Dim Pan
+	Pan = EMSTransformPan (EMSPanForTableX (ForObj.X))
+	Dim Fade
+	Fade = EMSTransformFade (EMSFadeForTableY (ForObj.Y))
+	PlaySound SoundName, LoopCount, Volume * MASTER_VOLUME, Pan, NO_RANDOM_PITCH, NO_PITCH_CHANGE, DONT_USE_EXISTING_SOUND, RESTART_SOUND, Fade
+End Sub
+
+'------------------------------------------------------------------------------------- Ball Rolling
+
+'Calculates the ball speed.
+Function EMSBallVelocity (Ball)
+    EMSBallVelocity = Int (Sqr ((Ball.VelX ^ 2) + (Ball.VelY ^ 2)))
+End Function
+
+Const ROLLING_SOUND_SCALAR = 0.22
+
+' Calculates the roll volume of the sound based on the ball speed.
+Function EMSVolumePlayfieldRoll (Ball)
+	EMSVolumePlayfieldRoll = ROLLING_SOUND_SCALAR * 0.0005 * CSng (EMSBallVelocity (Ball) ^ 3)
+End Function
+
+' Calculates the roll pitch of the sound based on the ball speed.
+Function EMSPitchPlayfieldRoll (Ball)
+	EMSPitchPlayfieldRoll = EMSBallVelocity (Ball) ^ 2 * 15
+End Function
+
+' Calculates the pitch of the sound based on the ball speed.
+Function EMSPitch (Ball)
+    EMSPitch = EMSBallVelocity (Ball) * 20
+End Function
+
+Const NumberOfBalls = 5
+Const NumberOfLockedBalls = 0
+
+ReDim Rolling (NumberOfBalls)
+InitRolling
+
+Sub InitRolling
+	Dim I
+	For I = 0 To NumberOfBalls
+		Rolling(I) = False
+	Next
+End Sub
+
+Sub RollingSoundTimer_Timer ()
+	Dim BOT, B
+	BOT = GetBalls
+    
+	' Stop the sound of deleted balls.
+	For B = UBound (BOT) + 1 To NumberOfBalls
+		Rolling(B) = False
+		StopSound ("BallRoll_" & B)
+	Next
+	
+	' Exit the Sub If no balls on the table.
+	If UBound (BOT) = -1 Then Exit Sub
+	
+	' Play the rolling sound For each ball.
+	For B = 0 To UBound (BOT)
+		If EMSBallVelocity (BOT(B)) > 1 AND BOT(B).z < 30 Then
+			Rolling(B) = True
+			Dim Pan
+			Pan = EMSTransformPan (EMSPanForTableX (BOT(B).X))
+			Dim Fade
+			Fade = EMSTransformFade (EMSFadeForTableY (BOT(B).Y))
+			PlaySound ("BallRoll_" & B), LOOP_UNTIL_STOPPED, EMSVolumePlayfieldRoll (BOT(B)) * 1.1 * MASTER_VOLUME, Pan, NO_RANDOM_PITCH, EMSPitchPlayfieldRoll (BOT(B)), USE_EXISTING_SOUND, DONT_RESTART_SOUND, Fade
+		Else
+			If Rolling(b) = True Then
+				StopSound ("BallRoll_" & B)
+				Rolling(B) = False
+			End If
+		End If
+	Next
+End Sub
+
+Sub OnBallBallCollision (Ball1, Ball2, Velocity)
+	PlaySound ("fx_collide"), 0, CSng (Velocity) ^ 2 / 2000, AudioPan (Ball1), 0, Pitch (Ball1), 0, 0, AudioFade (Ball1)
+End Sub
+
+'------------------------------------------------------------------------------------- Start Sounds
+
+Const COIN_VOLUME = 1.0						'volume level; range [0, 1]
+
+Sub EMSPlayCoinSound ()
+	EMSPlaySoundAtVolumePanAndFade ("Coin_In_" & Int (Rnd * 3) + 1), COIN_VOLUME, SOUND_PAN_CENTER, EMSTransformFade(SOUND_FADE_NEAR_PLAYER)
+End Sub
+
+Const START_BUTTON_VOLUME = 1.0				'volume level; range [0, 1]
+
+Sub EMSPlayStartButtonSound ()
+	EMSPlaySoundAtVolumePanAndFade "Start_Button", START_BUTTON_VOLUME, SOUND_PAN_LEFT, SOUND_FADE_NEAR_PLAYER
+End Sub
+
+Const STARTUP_VOLUME = 1.0					'volume level; range [0, 1]
+
+Sub EMSPlayStartupSound ()
+	EMSPlaySoundAtVolumePanAndFade "startup_norm", STARTUP_VOLUME, SOUND_PAN_CENTER, EMSTransformFade (SOUND_FADE_NEAR_BACKGLASS)
+End Sub
+
+Const PLUNGER_PULL_VOLUME = 0.8				'volume level; range [0, 1]
+
+Sub EMSPlayPlungerPullSound (PlungerObj)
+	EMSPlaySoundAtVolumeForObject "Plunger_Pull_1", PLUNGER_PULL_VOLUME, PlungerObj
+End Sub
+
+Const PLUNGER_RELEASE_VOLUME = 0.8			'volume level; range [0, 1]
+
+Sub EMSPlayPlungerReleaseBallSound (PlungerObj)
+	EMSPlaySoundAtVolumeForObject "Plunger_Release_Ball", PLUNGER_RELEASE_VOLUME, PlungerObj
+End Sub
+
+Sub EMSPlayPlungerReleaseNoBallSound (PlungerObj)
+	EMSPlaySoundAtVolumeForObject "Plunger_Release_No_Ball", PLUNGER_RELEASE_VOLUME, PlungerObj
+End Sub
+
+Const START_BALL_VOLUME = 0.4				'volume level; range [0, 1]
+
+Sub EMSPlayStartBallSound (Which)
+	Dim SoundName
+	If Which = 0 Then
+		SoundName = "StartBall1"
+	Else
+		SoundName = "StartBall2-5"
+	End If
+	EMSPlaySoundAtVolumePanAndFade SoundName, START_BALL_VOLUME, SOUND_PAN_CENTER, EMSTransformFade (SOUND_FADE_NEAR_PLAYER)
+End Sub
+
+Const BALL_RELEASE_VOLUME = 1.0				'volume level; range [0, 1]
+
+Sub EMSPlayBallReleaseSound ()
+	EMSPlaySoundAtVolumePanAndFade ("BallRelease" & Int (Rnd * 7) + 1), BALL_RELEASE_VOLUME, EMSTransformPan (SOUND_PAN_RIGHT), EMSTransformFade (SOUND_FADE_NEAR_PLAYER)
+End Sub
+
+Const ROTATE_THROUGH_PLAYERS_VOLUME = 0.8	'volume level; range [0, 1]
+
+Sub EMSPlayRotateThroughPlayersSound
+	EMSPlaySoundAtVolumePanAndFade "RotateThruPlayers", ROTATE_THROUGH_PLAYERS_VOLUME, SOUND_PAN_CENTER, EMSTransformFade (SOUND_FADE_NEAR_PLAYER)
+End Sub
+
+'----------------------------------------------------------------------------------- Flipper Sounds
+
+Const FLIPPER_UP_ATTACK_MIN_VOLUME = 0.010	'volume level; range [0, 1]
+Const FLIPPER_UP_ATTACK_MAX_VOLUME = 0.635	'volume level; range [0, 1]
+Const FLIPPER_UP_VOLUME = 1.0				'volume level; range [0, 1]
+Const FLIPPER_BUZZ_VOLUME = 0.05			'volume level; range [0, 1]
+
+Dim FlipperLeftHitParm, FlipperRightHitParm
+FlipperLeftHitParm = FLIPPER_UP_VOLUME		'sound helper; not configurable
+FlipperRightHitParm = FLIPPER_UP_VOLUME		'sound helper; not configurable
+
+Sub EMSPlayLeftFlipperUpAttackSound (FlipperObj)
+	Dim SoundLevel
+	SoundLevel = Rnd () * (FLIPPER_UP_ATTACK_MAX_VOLUME - FLIPPER_UP_ATTACK_MIN_VOLUME) + FLIPPER_UP_ATTACK_MIN_VOLUME
+	EMSPlaySoundAtVolumeForObject SoundFX ("Flipper_Attack-L01", DOFFlippers), SoundLevel, FlipperObj
+End Sub
+
+Sub EMSPlayRightFlipperUpAttackSound (FlipperObj)
+	Dim SoundLevel
+	SoundLevel = Rnd () * (FLIPPER_UP_ATTACK_MAX_VOLUME - FLIPPER_UP_ATTACK_MIN_VOLUME) + FLIPPER_UP_ATTACK_MIN_VOLUME
+	EMSPlaySoundAtVolumeForObject SoundFX ("Flipper_Attack-R01", DOFFlippers), SoundLevel, FlipperObj
+End Sub
+
+Sub EMSPlayLeftFlipperUpSound (FlipperObj)
+	EMSPlaySoundAtVolumeForObject SoundFX ("Flipper_L0" & Int (Rnd * 9) + 1, DOFFlippers), FlipperLeftHitParm, FlipperObj
+End Sub
+
+Sub EMSPlayRightFlipperUpSound (FlipperObj)
+	EMSPlaySoundAtVolumeForObject SoundFX("Flipper_R0" & Int (Rnd * 9) + 1, DOFFlippers), FlipperRightHitParm, FlipperObj
+End Sub
+
+Const FLIPPER_REFLIP_VOLUME = 0.8			'volume level; range [0, 1]
+
+Sub EMSPlayLeftFlipperReflipSound (FlipperObj)
+	EMSPlaySoundAtVolumeForObject SoundFX ("Flipper_ReFlip_L0" & Int (Rnd * 3) + 1, DOFFlippers), FLIPPER_REFLIP_VOLUME, FlipperObj
+End Sub
+
+Sub EMSPlayRightFlipperReflipSound (FlipperObj)
+	EMSPlaySoundAtVolumeForObject SoundFX ("Flipper_ReFlip_R0" & Int (Rnd * 3) + 1, DOFFlippers), FLIPPER_REFLIP_VOLUME, FlipperObj
+End Sub
+
+Const REFLIP_ANGLE = 20
+
+Sub EMSPlayLeftFlipperActivateSound (FlipperObj)
+	If FlipperObj.Currentangle < FlipperObj.EndAngle + REFLIP_ANGLE Then 
+		EMSPlayLeftFlipperReflipSound FlipperObj
+	Else 
+		EMSPlayLeftFlipperUpAttackSound FlipperObj
+		EMSPlayLeftFlipperUpSound FlipperObj
+	End If
+	EMSPlaySoundLoopedAtVolumeForObject "buzzL", LOOP_UNTIL_STOPPED, FLIPPER_BUZZ_VOLUME, FlipperObj
+End Sub
+
+Sub EMSPlayRightFlipperActivateSound (FlipperObj)
+	If FlipperObj.Currentangle < FlipperObj.EndAngle + REFLIP_ANGLE Then 
+		EMSPlayRightFlipperReflipSound FlipperObj
+	Else 
+		EMSPlayRightFlipperUpAttackSound FlipperObj
+		EMSPlayRightFlipperUpSound FlipperObj
+	End If
+	EMSPlaySoundLoopedAtVolumeForObject "buzz", LOOP_UNTIL_STOPPED, FLIPPER_BUZZ_VOLUME, FlipperObj
+End Sub
+
+Const FLIPPER_DEACTIVATE_VOLUME = 0.45			'volume level; range [0, 1]
+
+Sub EMSPlayLeftFlipperDeactivateSound (FlipperObj)
+	EMSPlaySoundAtVolumeForObject SoundFX ("Flipper_Left_Down_" & Int (Rnd * 7) + 1, DOFFlippers), FLIPPER_DEACTIVATE_VOLUME, FlipperObj
+	StopSound "buzzL"
+End Sub
+
+Sub EMSPlayRightFlipperDeactivateSound (FlipperObj)
+	EMSPlaySoundAtVolumeForObject SoundFX ("Flipper_Right_Down_" & Int (Rnd * 8) + 1, DOFFlippers), FLIPPER_DEACTIVATE_VOLUME, FlipperObj
+	StopSound "buzz"
+End Sub
+
+Const RUBBER_FLIPPER_SOUND_SCALAR = 0.015	'volume multiplier; must not be zero
+
+Sub EMSPlayLeftFlipperCollideSound (Parm)
+	FlipperLeftHitParm = Parm / 10
+	If FlipperLeftHitParm > 1 Then
+		FlipperLeftHitParm = 1
+	End If
+	FlipperLeftHitParm = FLIPPER_UP_VOLUME * FlipperLeftHitParm
+	EMSPlaySoundAtVolumeForActiveBall ("Flipper_Rubber_" & Int (Rnd * 7) + 1), Parm  * RUBBER_FLIPPER_SOUND_SCALAR
+End Sub
+
+Sub EMSPlayRightFlipperCollideSound (Parm)
+	FlipperRightHitParm = Parm / 10
+	If FlipperRightHitParm > 1 Then
+		FlipperRightHitParm = 1
+	End If
+	FlipperRightHitParm = FLIPPER_UP_VOLUME * FlipperRightHitParm
+	EMSPlaySoundAtVolumeForActiveBall ("Flipper_Rubber_" & Int (Rnd * 7) + 1), Parm  * RUBBER_FLIPPER_SOUND_SCALAR
+End Sub
+
+Sub EMSStopBuzzSounds ()
+	StopSound "buzzL"
+	StopSound "buzz"
+End Sub
+
+'--------------------------------------------------------------------------------- Playfield Sounds
+
+Const METAL_IMPACT_SOUND_SCALAR = 0.025
+
+Sub EMSPlayMetalHitSound ()
+	EMSPlaySoundAtVolumeForActiveBall ("Metal_Touch_" & Int (Rnd * 13) + 1), EMSVolumeForBall (ActiveBall) * METAL_IMPACT_SOUND_SCALAR
+End Sub
+
+Const GATE_HIT_VOLUME = 0.1					'volume level; range [0, 1]
+
+Sub EMSPlayGateHitSound ()
+	EMSPlaySoundAtVolumeForActiveBall ("gate4"), GATE_HIT_VOLUME
+End Sub
+
+Const DRAIN_VOLUME = 0.8					'volume level; range [0, 1]
+
+Sub EMSPlayDrainSound (DrainObj)
+	EMSPlaySoundAtVolumeForObject ("Drain_" & Int (Rnd * 11) + 1), DRAIN_VOLUME, DrainObj
+End Sub
+
+Const RUBBER_STRONG_SOUND_SCALAR = 0.011	'volume multiplier; must not be zero
+Const RUBBER_WEAK_SOUND_SCALAR = 0.015		'volume multiplier; must not be zero
+
+Sub EMSPlayRubberHitSound ()
+	Dim FinalSpeedSquared
+	FinalSpeedSquared = (ActiveBall.VelX * ActiveBall.VelX) + (ActiveBall.VelY * ActiveBall.VelY)
+	If FinalSpeedSquared > 25 Then			'strong
+		Dim SoundIndex
+		SoundIndex = Int (Rnd * 10) + 1
+		If SoundIndex > 9 Then
+			EMSPlaySoundAtVolumeForActiveBall "Rubber_1_Hard", EMSVolumeForBall (ActiveBall) * RUBBER_STRONG_SOUND_SCALAR * 0.6
+		Else
+			EMSPlaySoundAtVolumeForActiveBall ("Rubber_Strong_" & Int (SoundIndex)), EMSVolumeForBall (ActiveBall) * RUBBER_STRONG_SOUND_SCALAR
+		End If
+	Else									'weak
+		EMSPlaySoundAtVolumeForActiveBall ("Rubber_" & Int (Rnd * 9) + 1), EMSVolumeForBall (ActiveBall) * RUBBER_WEAK_SOUND_SCALAR
+	End If
+End Sub
+
+Const POST_SOUND_SCALAR = 0.1				'volume level; range [0, 1]
+
+Sub EMSPlayPostHitSound ()
+	Dim FinalSpeedSquared
+  	FinalSpeedSquared = (Activeball.VelX * Activeball.VelX) + (Activeball.VelY * Activeball.VelY)
+ 	If FinalSpeedSquared > 256 Then
+		EMSPlaySoundAtVolumeForActiveBall "fx_rubber2", EMSVolumeForBall (ActiveBall) * POST_SOUND_SCALAR
+	ElseIf FinalSpeedSquared >= 36 Then
+ 		EMSPlayRubberHitSound
+ 	End If
+End Sub
+
+Const SAUCER_LOCK_VOLUME = 0.8				'volume level; range [0, 1]
+
+Sub EMSPlaySaucerLockSound ()
+	EMSPlaySoundAtVolumeForActiveBall ("Saucer_Enter_" & Int (Rnd * 2) + 1), SAUCER_LOCK_VOLUME
+End Sub
+
+Const SAUCER_KICK_VOLUME = 0.8				'volume level; range [0, 1]
+
+Sub EMSPlaySaucerKickSound (scenario, saucerObj)
+	Select Case scenario
+		Case 0: EMSPlaySoundAtVolumeForObject SoundFX ("Saucer_Empty", DOFContactors), SAUCER_KICK_VOLUME, saucerObj
+		Case 1: EMSPlaySoundAtVolumeForObject SoundFX ("Saucer_Kick", DOFContactors), SAUCER_KICK_VOLUME, saucerObj
+	End Select
+End Sub
+
+Const SLINGSHOT_VOLUME = 0.95				'volume level; range [0, 1]
+
+Sub EMSPlayLeftSlingshotSound (Sling)
+	EMSPlaySoundAtVolumeForObject SoundFX ("Sling_L" & Int(Rnd * 10) + 1, DOFContactors), SLINGSHOT_VOLUME, Sling
+End Sub
+
+Sub EMSPlayRightSlingshotSound(Sling)
+	EMSPlaySoundAtVolumeForObject SoundFX ("Sling_R" & Int(Rnd * 8) + 1, DOFContactors), SLINGSHOT_VOLUME, Sling
+End Sub
+
+Const BUMPER_SOUND_SCALAR = 6.0				'volume multiplier; must not be zero
+
+Sub EMSPlayTopBumperSound (BumperObj)
+	EMSPlaySoundAtVolumeForObject SoundFX ("Bumpers_Top_" & Int (Rnd * 5) + 1, DOFContactors), EMSVolumeForBall (ActiveBall) * BUMPER_SOUND_SCALAR, BumperObj
+End Sub
+
+Sub EMSPlayMiddleBumperSound (BumperObj)
+	EMSPlaySoundAtVolumeForObject SoundFX ("Bumpers_Middle_" & Int (Rnd * 5) + 1, DOFContactors), EMSVolumeForBall (ActiveBall) * BUMPER_SOUND_SCALAR, BumperObj
+End Sub
+
+Sub EMSPlayBottomBumperSound (BumperObj)
+	EMSPlaySoundAtVolumeForObject SoundFX ("Bumpers_Bottom_" & Int (Rnd * 5) + 1, DOFContactors), EMSVolumeForBall (ActiveBall) * BUMPER_SOUND_SCALAR, BumperObj
+End Sub
+
+Const ROLLOVER_VOLUME = 0.25				'volume level; range [0, 1]
+
+Sub EMSPlayRolloverSound()
+	EMSPlaySoundAtVolumeForActiveBall ("Rollover_" & Int (Rnd * 4) + 1), ROLLOVER_VOLUME
+End Sub
+
+Const SENSOR_VOLUME = 1.0					'volume level; range [0, 1]
+
+Sub EMSPlaySensorSound ()
+	EMSPlaySoundAtVolumeForActiveBall "sensor", SENSOR_VOLUME
+End Sub
+
+Const TARGET_SOUND_SCALAR = 0.025			'volume multiplier; must not be zero
+
+Sub EMSPlayTargetHitSound ()
+	Dim FinalSpeedSquared
+	FinalSpeedSquared = (Activeball.VelX * Activeball.VelX + Activeball.VelY * Activeball.VelY)
+	If FinalSpeedSquared > 100 Then
+		EMSPlaySoundAtVolumeForActiveBall SoundFX ("Target_Hit_" & Int(Rnd * 4) + 5, DOFTargets), EMSVolumeForBall (ActiveBall) * 0.45 * TARGET_SOUND_SCALAR
+	Else 
+		EMSPlaySoundAtVolumeForActiveBall SoundFX ("Target_Hit_" & Int(Rnd * 4) + 1, DOFTargets), EMSVolumeForBall (ActiveBall) * TARGET_SOUND_SCALAR
+	End If
+End Sub
+
+Const DROP_TARGET_RESET_VOLUME = 1.0		'volume level; range [0, 1]
+
+Sub EMSPlayDropTargetResetSound ()
+	EMSPlaySoundAtVolumePanAndFade "dropsup", DROP_TARGET_RESET_VOLUME, SOUND_PAN_CENTER, SOUND_FADE_CENTER
+End Sub
+
+Const PIN_HIT_VOLUME = 1.0					'volume level; range [0, 1]
+
+Sub EMSPlayPinHitSound ()
+	EMSPlaySoundAtVolumeForActiveBall "pinhit_low", PIN_HIT_VOLUME
+End Sub
+
+Const SPINNER_VOLUME = 1.0					'volume level; range [0, 1]
+
+Sub EMSPlaySpinnerSound (SpinnerObj)
+	EMSPlaySoundAtVolumeForObject "Spinner", SPINNER_VOLUME, SpinnerObj
+End Sub
+
+Const VARI_TARGET_VOLUME = 1.0				'volume level; range [0, 1]
+
+Sub EMSPlayVariTargetSound ()
+	EMSPlaySoundAtVolumeForActiveBall "fx_solenoidoff", VARI_TARGET_VOLUME
+End Sub
+
+'------------------------------------------------------------------------------------- Other Sounds
+
+Const CLICK_VOLUME = 1.0					'volume level; range [0, 1]
+
+Sub EMSPlayClickSound ()
+	EMSPlaySoundAtVolumePanAndFade "click", CLICK_VOLUME, SOUND_PAN_CENTER, SOUND_FADE_CENTER
+End Sub
+
+Const ROTO_START_VOLUME = 1.0				'volume level; range [0, 1]
+
+Sub EMSPlayRotoStartSound ()
+	EMSPlaySoundAtVolumePanAndFade "RotoStart", ROTO_START_VOLUME, EMSTransformPan (SOUND_PAN_LEFT), EMSTransformFade (SOUND_FADE_NEAR_BACKGLASS)
+End Sub
+
+Const CHIME_VOLUME = 1.0					'volume level; range [0, 1]
+Const CHIME_PAN = 0.5
+
+Sub EMSPlayChimeSound (ChimeNum)
+	Dim SoundName
+	Select Case ChimeNum
+		Case 0
+			If (Rnd * 2) > 0 Then
+				SoundName = "SJ_Chime_10a"
+			Else
+				SoundName = "SJ_Chime_10b"
+			End If
+		Case 1
+			If (Rnd * 2) > 0 Then
+				SoundName = "SJ_Chime_100a"
+			Else
+				SoundName = "SJ_Chime_100b"
+			End If
+		Case 2
+			If (Rnd * 2) > 0 Then
+				SoundName = "SJ_Chime_1000a"
+			Else
+				SoundName = "SJ_Chime_1000b"
+			End If
+		Case Else
+			Exit Sub
+	End Select
+	EMSPlaySoundAtVolumePanAndFade SoundName, CHIME_VOLUME, EMSTransformPan (CHIME_PAN), SOUND_FADE_CENTER
+End Sub
+
+Const BELL_VOLUME = 0.25					'volume level; range [0, 1]
+Const BELL_PAN = 0.5
+
+Sub EMSPlayBellSound (BellNum)
+	Select Case BellNum
+		Case 0
+			EMSPlaySoundAtVolumePanAndFade "SpinACard_10_Point_Bell", BELL_VOLUME, EMSTransformPan (SOUND_PAN_RIGHT), SOUND_FADE_CENTER
+		Case 1
+			EMSPlaySoundAtVolumePanAndFade "SpinACard_100_Point_Bell", BELL_VOLUME, EMSTransformPan (SOUND_PAN_RIGHT), SOUND_FADE_CENTER
+		Case 2
+			EMSPlaySoundExistingAtVolumePanAndFade "SpinACard_1000_Point_Bell", BELL_VOLUME, EMSTransformPan (BELL_PAN), SOUND_FADE_CENTER
+	End Select
+End Sub
+
+Const KNOCKER_VOLUME = 1.0					'volume level; range [0, 1]
+
+Sub EMSPlayKnockerSound ()
+	EMSPlaySoundAtVolumePanAndFade "Knocker_1", KNOCKER_VOLUME, SOUND_PAN_CENTER, EMSTransformFade (SOUND_FADE_NEAR_BACKGLASS)
+End Sub
+
+Const MOTOR_LEER_VOLUME = 1.0				'volume level; range [0, 1]
+
+Sub EMSPlayMotorLeerSound ()
+	EMSPlaySoundAtVolumePanAndFade "MotorLeer", MOTOR_LEER_VOLUME, SOUND_PAN_CENTER, EMSTransformFade (SOUND_FADE_NEAR_BACKGLASS)
+End Sub
+
+Const MOTOR_PAUSE_VOLUME = 1.0				'volume level; range [0, 1]
+
+Sub EMSPlayMotorPauseSound ()
+	EMSPlaySoundAtVolumePanAndFade "MotorPause", MOTOR_PAUSE_VOLUME, SOUND_PAN_CENTER, EMSTransformFade (SOUND_FADE_NEAR_BACKGLASS)
+End Sub
+
+'==================================================================================================
+'											 End EM Sounds
+'==================================================================================================
+
+'*****************************************
+'	ninuzzu's	BALL SHADOW
+'*****************************************
+
+Dim BallShadow
+BallShadow = Array (BallShadow1,BallShadow2,BallShadow3,BallShadow4,BallShadow5)
+
+Sub BallShadowUpdate_timer()
+	Dim BOT, b
+	BOT = GetBalls
+	' hide shadow of deleted balls
+	If UBound(BOT) < (NumberOfBalls - 1) Then
+		For b = (UBound(BOT) + 1) To (NumberOfBalls-1)
+			BallShadow(b).Visible = 0
+		Next
+	End If
+	' Exit the Sub If no balls on the table
+	If UBound(BOT) = -1 Then Exit Sub
+	' render the shadow For Each ball
+	For b = 0 To UBound(BOT)
+		If BOT(b).X < Table1.Width / 2 Then
+			BallShadow(b).X = ((BOT(b).X) - (Ballsize / 6) + ((BOT(b).X - (Table1.Width / 2)) / 7)) + 6
+		Else
+			BallShadow(b).X = ((BOT(b).X) + (Ballsize / 6) + ((BOT(b).X - (Table1.Width / 2)) / 7)) - 6
+		End If
+		ballShadow(b).Y = BOT(b).Y + 12
+		If BOT(b).Z > 20 Then
+			BallShadow(b).Visible = 1
+		Else
+			BallShadow(b).Visible = 0
+		End If
+	Next
+End Sub
+
+'*****************************************
+'	Object sounds
+'*****************************************
+
+Sub Plastics_Hit (idx)
+	PlaySound "woodhit_low", 0, Vol(ActiveBall), AudioPan(ActiveBall), 0, Pitch(ActiveBall), 0, 0, AudioFade(ActiveBall)
+End Sub
+
+Sub Pins_Hit (idx)
+	PlaySound "pinhit_low", 0, Vol(ActiveBall), AudioPan(ActiveBall), 0, Pitch(ActiveBall), 0, 0, AudioFade(ActiveBall)
+End Sub
+
+Sub Targets_Hit (idx)
+	PlaySound "target", 0, Vol(ActiveBall), AudioPan(ActiveBall), 0, Pitch(ActiveBall), 0, 0, AudioFade(ActiveBall)
+End Sub
+
+Sub Metals_Thin_Hit (idx)
+	PlaySound "metalhit_thin", 0, Vol(ActiveBall), AudioPan(ActiveBall), 0, Pitch(ActiveBall), 1, 0, AudioFade(ActiveBall)
+End Sub
+
+Sub Metals_Medium_Hit (idx)
+	PlaySound "metalhit_medium", 0, Vol(ActiveBall), AudioPan(ActiveBall), 0, Pitch(ActiveBall), 1, 0, AudioFade(ActiveBall)
+End Sub
+
+Sub Metals2_Hit (idx)
+	EMSPlayMetalHitSound
+End Sub
+
+Sub Gates_Hit (idx)
+	PlaySound "gate4", 0, Vol(ActiveBall), AudioPan(ActiveBall), 0, Pitch(ActiveBall), 1, 0, AudioFade(ActiveBall)
+End Sub
+
+Sub Spinner_Spin
+	PlaySound "fx_spinner", 0, .25, AudioPan(Spinner), 0.25, 0, 0, 1, AudioFade(Spinner)
+End Sub
+
+Sub Rubbers_Hit (idx)
+	EMSPlayRubberHitSound
+End Sub
+
+Sub Posts_Hit (idx)
+	Dim finalspeed
+	finalspeed = Sqr (activeball.VelX * activeball.VelX + activeball.VelY * activeball.VelY)
+	If finalspeed > 16 Then 
+		PlaySound "fx_rubber2", 0, Vol(ActiveBall), AudioPan(ActiveBall), 0, Pitch(ActiveBall), 1, 0, AudioFade(ActiveBall)
+	End If
+	If finalspeed >= 6 And finalspeed <= 16 Then
+		RandomSoundRubber()
+	End If
+End Sub
+
+Sub RandomSoundRubber()
+	Select Case Int (Rnd * 3) + 1
+		Case 1 : PlaySound "rubber_hit_1", 0, Vol(ActiveBall), AudioPan(ActiveBall), 0, Pitch(ActiveBall), 1, 0, AudioFade(ActiveBall)
+		Case 2 : PlaySound "rubber_hit_2", 0, Vol(ActiveBall), AudioPan(ActiveBall), 0, Pitch(ActiveBall), 1, 0, AudioFade(ActiveBall)
+		Case 3 : PlaySound "rubber_hit_3", 0, Vol(ActiveBall), AudioPan(ActiveBall), 0, Pitch(ActiveBall), 1, 0, AudioFade(ActiveBall)
+	End Select
+End Sub
+
+Sub LeftFlipper_Collide (Parm)
+	EMSPlayLeftFlipperCollideSound Parm
+End Sub
+
+Sub RightFlipper_Collide (Parm)
+	EMSPlayRightFlipperCollideSound Parm
+End Sub
+
+
+'============================================================================================ 
+' GNMOD - Multiple High Score Display And Collection
+'============================================================================================ 
+
+Dim EnteringInitials		' Normally zero, set To non-zero To enter initials
+EnteringInitials = 0
+Dim PlungerPulled
+PlungerPulled = 0
+Dim SelectedChar			' character under the "cursor" when entering initials
+Dim HSTimerCount			' Pass counter For HS timer, scores are cycled by the timer
+HSTimerCount = 5			' Timer is initially Enabled, it'll wrap from 5 To 1 when it's displayed
+Dim InitialString			' the string holding the player's initials as they're entered
+Dim AlphaString				' A-Z, 0-9, space (_) And backspace (<)
+Dim AlphaStringPos			' pointer To AlphaString, move forward And backward with flipper keys
+AlphaString = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_<"
+Dim HSNewHigh				' The new score To be recorded
+Dim HSScore(10)				' High Scores read In from config file
+Dim HSName(10)				' High Score Initials read In from config file
+
+' default high scores, remove this when the scores are available from the config file
+HSScore(1) = 3500
+HSScore(2) = 3000
+HSScore(3) = 2800
+HSScore(4) = 2500
+HSScore(5) = 2000
+
+HSName(1) = "AAA"
+HSName(2) = "ZZZ"
+HSName(3) = "XXX"
+HSName(4) = "ABC"
+HSName(5) = "BBB"
+
+HSScore(6) = 25
+HSScore(7) = 20
+HSScore(8) = 18
+HSScore(9) = 14
+HSScore(10) = 10
+
+HSName(6) = "AAA"
+HSName(7) = "ZZZ"
+HSName(8) = "XXX"
+HSName(9) = "ABC"
+HSName(10) = "BBB"
+
+Sub HighScoreTimer_Timer
+	If EnteringInitials Then
+		If HSTimerCount = 1 Then
+			If CheckAllScores = 1 Then
+				SetHSLine 3, InitialString & Mid (AlphaString, AlphaStringPos, 1)
+			elseIf CheckAllPoints = 1 Then
+				SetHSLine 6, InitialString & Mid (AlphaString, AlphaStringPos, 1)
+			End If
+			HSTimerCount = 2
+		Else
+			If CheckAllScores = 1 Then
+				SetHSLine 3, InitialString
+			elseIf CheckAllPoints = 1 Then
+				SetHSLine 6, InitialString
+			End If
+			HSTimerCount = 1
+		End If
+		Exit Sub
+	ElseIf InProgress Then
+		SetHSLine 1, "HIGH SCORE1"
+		SetHSLine 2, HSScore(1)
+		SetHSLine 3, HSName(1)
+		SetHSLine 4, "TOP POINTS1"
+		SetHSLine 5, HSScore(6)
+		SetHSLine 6, HSName(6)
+		HSTimerCount = 5	' set so the highest score will show after the game is over
+		HighScoreTimer.Enabled = False
+	ElseIf CheckAllScores Then
+		NewHighScore sortscores (ScoreChecker - 1),sortplayers(ScoreChecker - 1)
+	ElseIf CheckAllPoints Then
+		NewHighPoints sortpoints (ScoreChecker - 1),sortplayerpoints(ScoreChecker - 1)
+	Else
+		' cycle through high scores
+		HighScoreTimer.Interval = 2000
+		HSTimerCount = HSTimerCount + 1
+		If HsTimerCount > 5 Then
+			HSTimerCount = 1
+		End If
+		SetHSLine 1, "HIGH SCORE"+FormatNumber(HSTimerCount,0)
+		SetHSLine 2, HSScore(HSTimerCount)
+		SetHSLine 3, HSName(HSTimerCount)
+		SetHSLine 4, "TOP POINTS"+FormatNumber(HSTimerCount,0)
+		SetHSLine 5, HSScore(HSTimerCount+5)
+		SetHSLine 6, HSName(HSTimerCount+5)
+	End If
+End Sub
+
+Function GetHSChar (String, Index)
+	Dim ThisChar
+	Dim FileName
+	ThisChar = Mid (String, Index, 1)
+	FileName = "PostIt"
+	If ThisChar = " " Or ThisChar = "" Then
+		FileName = FileName & "BL"
+	ElseIf ThisChar = "<" Then
+		FileName = FileName & "LT"
+	ElseIf ThisChar = "_" Then
+		FileName = FileName & "SP"
+	Else
+		FileName = FileName & ThisChar
+	End If
+	GetHSChar = FileName
+End Function
+
+Sub SetHsLine (LineNo, String)
+	Dim Letter
+	Dim ThisDigit
+	Dim ThisChar
+	Dim StrLen
+	Dim LetterLine
+	Dim Index
+	Dim StartHSArray
+	Dim EndHSArray
+	Dim LetterName
+	Dim xfor
+	StartHSArray = Array (0, 1, 12, 22, 32, 43, 53)
+	EndHSArray = Array (0, 11, 21, 31, 42, 52, 62)
+	StrLen = Len (string)
+	Index = 1
+	
+	For xfor = StartHSArray (LineNo) To EndHSArray (LineNo)
+		Eval ("HS" & xfor).Image = GetHSChar (String, Index)
+		Index = Index + 1
+	Next
+End Sub
+
+Sub NewHighScore (NewScore, PlayNum)
+	ScoreChecker = ScoreChecker - 1
+	If ScoreChecker = 0 Then
+		CheckAllScores = 0
+		ScoreChecker = 5
+		CheckAllPoints = 1
+		Exit Sub
+	End If
+	If NewScore > HSScore(5) Then
+		HighScoreTimer.Interval = 500
+		HSTimerCount = 1
+		AlphaStringPos = 1		' start with first character "A"
+		EnteringInitials = 1	' intercept the control keys while entering initials
+		InitialString = ""		' initials entered so far, initialize To empty
+		SetHSLine 1, "PLAYER "+FormatNumber(PlayNum,0)
+		SetHSLine 2, "ENTER NAME"
+		SetHSLine 3, Mid (AlphaString, AlphaStringPos, 1)
+		HSNewHigh = NewScore
+		For xx = 1 To HighScoreReward
+			AddSpecial
+		Next
+	End If
+End Sub
+
+Sub NewHighPoints (NewScore, PlayNum)
+	ScoreChecker = ScoreChecker - 1
+	If ScoreChecker = 0 Then
+		CheckAllScores = 0
+		CheckAllPoints = 0
+		Exit Sub
+	End If
+	If NewScore > HSScore(10) Then
+		HighScoreTimer.Interval = 500
+		HSTimerCount = 1
+		AlphaStringPos = 1		' start with first character "A"
+		EnteringInitials = 1	' intercept the control keys while entering initials
+		InitialString = ""		' initials entered so far, initialize To empty
+		SetHSLine 4, "PLAYER "+FormatNumber(PlayNum,0)
+		SetHSLine 5, "ENTER NAME"
+		SetHSLine 6, Mid (AlphaString, AlphaStringPos, 1)
+		HSNewHigh = NewScore
+		For xx = 1 To HighScoreReward
+			AddSpecial
+		Next
+	End If
+End Sub
+
+Sub CollectInitials (keycode)
+	If keycode = LeftFlipperKey Then
+		' back up To previous character
+		AlphaStringPos = AlphaStringPos - 1
+		If AlphaStringPos < 1 Then
+			AlphaStringPos = Len (AlphaString)		' handle wrap from beginning To End
+			If InitialString = "" Then
+				' Skip the backspace If there are no characters To backspace over
+				AlphaStringPos = AlphaStringPos - 1
+			End If
+		End If
+		If CheckAllScores = 1 Then
+			SetHSLine 3, InitialString & Mid (AlphaString, AlphaStringPos, 1)
+		End If
+		If CheckAllPoints = 1 Then
+			SetHSLine 6, InitialString & Mid (AlphaString, AlphaStringPos, 1)
+		End If
+		PlaySound "DropTargetDropped"
+	ElseIf keycode = RightFlipperKey Then
+		' advance To Next character
+		AlphaStringPos = AlphaStringPos + 1
+		If AlphaStringPos > Len (AlphaString) Or (AlphaStringPos = Len (AlphaString) And InitialString = "") Then
+			' Skip the backspace If there are no characters To backspace over
+			AlphaStringPos = 1
+		End If
+		If CheckAllScores = 1 Then
+			SetHSLine 3, InitialString & Mid (AlphaString, AlphaStringPos, 1)
+		End If
+		If CheckAllPoints = 1 Then
+			SetHSLine 6, InitialString & Mid (AlphaString, AlphaStringPos, 1)
+		End If
+		PlaySound "DropTargetDropped"
+	ElseIf keycode = StartGameKey Or keycode = PlungerKey Then
+		SelectedChar = Mid (AlphaString, AlphaStringPos, 1)
+		If SelectedChar = "_" Then
+			InitialString = InitialString & " "
+			PlaySound ("Ding10")
+		ElseIf SelectedChar = "<" Then
+			InitialString = Mid (InitialString, 1, Len (InitialString) - 1)
+			If Len (InitialString) = 0 Then
+				' If there are no more characters To back over, don't leave the < displayed
+				AlphaStringPos = 1
+			End If
+			PlaySound ("Ding100")
+		Else
+			InitialString = InitialString & SelectedChar
+			PlaySound ("Ding10")
+		End If
+		If Len (InitialString) < 3 Then
+			If CheckAllScores = 1 Then
+				SetHSLine 3, InitialString & SelectedChar
+			End If
+			If CheckAllPoints = 1 Then
+				SetHSLine 6, InitialString & SelectedChar
+			End If
+		End If
+	End If
+	If Len (InitialString) >= 3 Then
+		' save the score
+		If CheckAllScores = 1 Then
+			For i = 5 To 1 step -1
+				If i = 1 Or (HSNewHigh > HSScore(i) And HSNewHigh <= HSScore(i - 1)) Then
+					' Replace the score at this location
+					If i < 5 Then
+	' MsgBox("Moving " & i & " To " & (i + 1))
+						HSScore(i + 1) = HSScore(i)
+						HSName(i + 1) = HSName(i)
+					End If
+	' MsgBox("Saving initials " & InitialString & " To position " & i)
+					EnteringInitials = 0
+					HSScore(i) = HSNewHigh
+					HSName(i) = InitialString
+					HSTimerCount = 5
+					HighScoreTimer.Enabled = False
+					HighScoreTimer.Interval = 100
+					HighScoreTimer.Enabled = True
+					SetHSLine 2, HSScore(i)
+					SetHSLine 3, HSName(i)
+					PlaySound ("Ding1000")
+					Exit Sub
+				ElseIf i < 5 Then
+					' move the score In this slot down by 1, it's been exceeded by the new score
+	' MsgBox("Moving " & i & " To " & (i + 1))
+					HSScore(i + 1) = HSScore(i)
+					HSName(i + 1) = HSName(i)
+				End If
+			Next
+		End If
+		If CheckAllPoints = 1 Then
+			For i = 10 To 6 step -1
+				If i = 6 Or (HSNewHigh > HSScore(i) And HSNewHigh <= HSScore(i - 1)) Then
+					' Replace the score at this location
+					If i < 10 Then
+	' MsgBox("Moving " & i & " To " & (i + 1))
+						HSScore(i + 1) = HSScore(i)
+						HSName(i + 1) = HSName(i)
+					End If
+	' MsgBox("Saving initials " & InitialString & " To position " & i)
+					EnteringInitials = 0
+					HSScore(i) = HSNewHigh
+					HSName(i) = InitialString
+					HSTimerCount = 5
+					HighScoreTimer.Enabled = False
+					HighScoreTimer.Interval = 100
+					HighScoreTimer.Enabled = True
+					SetHSLine 5, HSScore(i)
+					SetHSLine 6, HSName(i)
+					PlaySound ("Ding1000")
+					Exit Sub
+				ElseIf i < 10 Then
+					' move the score In this slot down by 1, it's been exceeded by the new score
+	' MsgBox("Moving " & i & " To " & (i + 1))
+					HSScore(i + 1) = HSScore(i)
+					HSName(i + 1) = HSName(i)
+				End If
+			Next
+		End If
+	End If
+End Sub
+' END GNMOD
+
+'============================================================================================ 
+' GNMOD - New Options menu
+'============================================================================================ 
+
+Dim EnteringOptions
+Dim CurrentOption
+Dim OptionCHS
+Dim MaxOption
+Dim OptionHighScorePosition
+Dim XOpt
+Dim StartingArray
+Dim EndingArray
+
+StartingArray = Array (0, 1, 2, 30, 33, 61, 89, 117, 145, 173, 201, 229)
+EndingArray = Array (0, 1, 29, 32, 60, 88, 116, 144, 172, 200, 228, 256)
+EnteringOptions = 0
+MaxOption = 9
+OptionCHS = 0
+OptionHighScorePosition = 0
+Const OptionLinesToMark = "111001011"
+Const OptionLine1 = "" 'do not use this line
+Const OptionLine2 = "" 'do not use this line
+Const OptionLine3 = "" 'do not use this line
+Const OptionLine4 = ""
+Const OptionLine5 = ""
+Const OptionLine6 = "S And P lights"
+Const OptionLine7 = ""
+Const OptionLine8 = "" 'do not use this line
+Const OptionLine9 = "" 'do not use this line
+
+Sub OperatorMenuTimer_Timer
+	EnteringOptions = 1
+	OperatorMenuTimer.Enabled = False
+	ShowOperatorMenu
+End Sub
+
+Sub ShowOperatorMenu
+	OperatorMenuBackdrop.Image = "OperatorMenu"
+	OptionCHS = 0
+	CurrentOption = 1
+	DisplayAllOptions
+	OperatorOption1.Image = "BluePlus"
+	SetHighScoreOption
+End Sub
+
+Sub DisplayAllOptions
+	Dim linecounter
+	Dim tempstring
+	Dim TempText1
+	Dim TempText2
+	Dim TempText3
+	For linecounter = 1 To MaxOption
+		tempstring = Eval ("OptionLine" & linecounter)
+		Select Case linecounter
+			Case 1:
+				tempstring = tempstring + FormatNumber(BallsPerGame, 0)
+				SetOptLine 1, tempstring
+			Case 2:
+				If Replay3Table(ReplayLevel) = 999000 Then
+					tempstring = FormatNumber(Replay1Table(ReplayLevel),0) + "/" + FormatNumber(Replay2Table(ReplayLevel),0)
+				ElseIf Replay4Table(ReplayLevel) = 999000 Then
+					tempstring = FormatNumber(Replay1Table(ReplayLevel),0) + "/" + FormatNumber(Replay2Table(ReplayLevel),0) + "/" + FormatNumber(Replay3Table(ReplayLevel),0)
+				Else
+					tempstring = FormatNumber(Replay1Table(ReplayLevel),0) + "/" + FormatNumber(Replay2Table(ReplayLevel),0) + "/" + FormatNumber(Replay3Table(ReplayLevel),0) + "/" + FormatNumber(Replay4Table(ReplayLevel),0)
+				End If
+				SetOptLine 2,tempstring
+			Case 3:
+				If OptionCHS = 0 Then
+					tempstring = "NO"
+				Else
+					tempstring = "YES"
+				End If
+				SetOptLine 3,tempstring
+			Case 4:
+				SetOptLine 4, tempstring
+				SetOptLine 5, tempstring
+			Case 5:
+				SetOptLine 6, tempstring
+				SetOptLine 7, tempstring
+			Case 6:
+				SetOptLine 8, tempstring
+				Select Case StartGameState
+					Case 0:
+						tempstring = "Liberal"
+					Case 1:
+						tempstring = "Moderate"
+					Case 2:
+						tempstring = "Conservative"
+				End Select
+				SetOptLine 9, tempstring
+				
+			Case 7:
+				SetOptLine 10, tempstring
+				SetOptLine 11, tempstring
+			Case 8:
+			Case 9:
+				'
+		End Select
+	Next
+End Sub
+
+Sub MoveArrow
+	Do
+		CurrentOption = CurrentOption + 1
+		If CurrentOption > Len (OptionLinesToMark) Then
+			CurrentOption = 1
+		End If
+	Loop Until Mid (OptionLinesToMark, CurrentOption, 1) = "1"
+End Sub
+
+Sub CollectOptions (ByVal keycode)
+	If Keycode = LeftFlipperKey Then
+		PlaySound "DropTargetDropped"
+		For XOpt = 1 To MaxOption
+			Eval ("OperatorOption" & XOpt).Image = "PostitBL"
+		Next
+		MoveArrow
+		If CurrentOption < 8 Then
+			Eval ("OperatorOption" & CurrentOption).Image = "BluePlus"
+		ElseIf CurrentOption = 8 Then
+			Eval ("OperatorOption" & CurrentOption).Image = "GreenCheck"
+		Else
+			Eval ("OperatorOption" & CurrentOption).Image = "RedX"
+		End If
+	ElseIf Keycode = RightFlipperKey Then
+		PlaySound "DropTargetDropped"
+		If CurrentOption = 1 Then
+			If BallsPerGame = 3 Then
+				BallsPerGame = 5
+			Else
+				BallsPerGame = 3
+			End If
+			DisplayAllOptions
+		ElseIf CurrentOption = 2 Then
+			ReplayLevel = ReplayLevel + 1
+			If ReplayLevel > ReplayTableMax Then
+				ReplayLevel = 1
+			End If
+			DisplayAllOptions
+		ElseIf CurrentOption = 3 Then
+			If OptionCHS = 0 Then
+				OptionCHS = 1
+			Else
+				OptionCHS = 0
+			End If
+			DisplayAllOptions
+		ElseIf CurrentOption = 6 Then
+			StartGameState = StartGameState + 1
+			If StartGameState > 2 Then StartGameState = 0
+			DisplayAllOptions
+		ElseIf CurrentOption = 8 Or CurrentOption = 9 Then
+			If OptionCHS = 1 Then
+				HSScore(1) = 3500
+				HSScore(2) = 3000
+				HSScore(3) = 2800
+				HSScore(4) = 2500
+				HSScore(5) = 2000
+				
+				HSName(1) = "AAA"
+				HSName(2) = "ZZZ"
+				HSName(3) = "XXX"
+				HSName(4) = "ABC"
+				HSName(5) = "BBB"
+				
+				HSScore(6) = 25
+				HSScore(7) = 20
+				HSScore(8) = 18
+				HSScore(9) = 14
+				HSScore(10) = 10
+				
+				HSName(6) = "AAA"
+				HSName(7) = "ZZZ"
+				HSName(8) = "XXX"
+				HSName(9) = "ABC"
+				HSName(10) = "BBB"
+			End If
+			If CurrentOption = 8 Then
+				savehs
+			Else
+				loadhs
+			End If
+			OperatorMenuBackdrop.Image = "PostitBL"
+			For XOpt = 1 To MaxOption
+				Eval ("OperatorOption" & XOpt).Image = "PostitBL"
+			Next
+			For XOpt = 1 To 256
+				Eval ("Option" & XOpt).Image = "PostItBL"
+			Next
+			RefreshReplayCard
+			EnteringOptions = 0
+		End If
+	End If
+End Sub
+
+Sub SetHighScoreOption
+	'	
+End Sub
+
+Function GetOptChar (String, Index)
+	Dim ThisChar
+	Dim FileName
+	ThisChar = Mid (String, Index, 1)
+	FileName = "PostIt"
+	If ThisChar = " " Or ThisChar = "" Then
+		FileName = FileName & "BL"
+	ElseIf ThisChar = "<" Then
+		FileName = FileName & "LT"
+	ElseIf ThisChar = "_" Then
+		FileName = FileName & "SP"
+	ElseIf ThisChar = "/" Then
+		FileName = FileName & "SL"
+	ElseIf ThisChar = "," Then
+		FileName = FileName & "CM"
+	Else
+		FileName = FileName & ThisChar
+	End If
+	GetOptChar = FileName
+End Function
+
+Dim LineLengths (22)	' maximum number of lines
+
+Sub SetOptLine (LineNo, String)
+	Dim DispLen
+	Dim StrLen
+	Dim xfor
+	Dim Letter
+	Dim ThisDigit
+	Dim ThisChar
+	Dim LetterLine
+	Dim Index
+	Dim LetterName
+	StrLen = Len (string)
+	Index = 1
+	StrLen = Len (String)
+	DispLen = StrLen
+	If (DispLen < LineLengths(LineNo)) Then
+		DispLen = LineLengths(LineNo)
+	End If
+	For xfor = StartingArray(LineNo) To StartingArray(LineNo) + DispLen
+		Eval ("Option" & xfor).Image = GetOptChar(string, Index)
+		Index = Index + 1
+	Next
+	LineLengths(LineNo) = StrLen
+End Sub
