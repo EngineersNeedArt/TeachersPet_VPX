@@ -347,16 +347,19 @@ Sub Table1_KeyDown (ByVal keycode)
 	End If
 	
 	If keycode = LeftTiltKey Then
+		EMSPlayNudgeSound
 		Nudge 90, 2
 		TiltIt
 	End If
 	
 	If keycode = RightTiltKey Then
+		EMSPlayNudgeSound
 		Nudge 270, 2
 		TiltIt
 	End If
 	
 	If keycode = CenterTiltKey Then
+		EMSPlayNudgeSound
 		Nudge 0, 2
 		TiltIt
 	End If
@@ -3041,7 +3044,7 @@ Sub EMSPlayTargetHitSound ()
 	End If
 End Sub
 
-Const DROP_TARGET_RESET_VOLUME = 1.0		'volume level; range [0, 1]
+Const DROP_TARGET_RESET_VOLUME = 0.5		'volume level; range [0, 1]
 
 Sub EMSPlayDropTargetResetSound ()
 	EMSPlaySoundAtVolumePanAndFade "dropsup", DROP_TARGET_RESET_VOLUME, SOUND_PAN_CENTER, SOUND_FADE_CENTER
