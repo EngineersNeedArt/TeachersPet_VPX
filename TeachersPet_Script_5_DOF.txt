@@ -3100,6 +3100,12 @@ Sub EMSPlayMotorLeerSound ()
 	EMSPlaySoundAtVolumePanAndFade "MotorLeer", MOTOR_LEER_VOLUME, SOUND_PAN_CENTER, EMSTransformFade (SOUND_FADE_NEAR_BACKGLASS)
 End Sub
 
+Const NUDGE_VOLUME = 1.0				'volume level; range [0, 1]
+
+Sub EMSPlayNudgeSound ()
+	EMSPlaySoundAtVolumePanAndFade "Nudge_" & Int (Rnd * 3) + 1, NUDGE_VOLUME, SOUND_PAN_CENTER, SOUND_FADE_CENTER
+End Sub
+
 '==================================================================================================
 '											 End EM Sounds
 '==================================================================================================
