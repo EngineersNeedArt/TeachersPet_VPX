@@ -1195,8 +1195,7 @@ Sub openg_timer
 	bottgate(bgpos).IsDropped = False
 	primgate.RotY = 30 + (bgpos * 10)
 	If bgpos = 0 Then
-		EMSPlaySoundAtVolumeForObject "postup", 1.0, primgate
-'		playsound "postup"
+		EMSPlaySoundAtVolumeForObject "fx_postup", 1.0, primgate
 		openg.Enabled = False
 		dooralreadyopen = 1
 	End If
