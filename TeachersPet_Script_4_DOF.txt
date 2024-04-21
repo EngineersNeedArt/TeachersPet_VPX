@@ -1131,7 +1131,7 @@ Sub ResetDrops()
 	LowerTargetLeft.IsDropped = False
 	LowerTargetRight.IsDropped = False
 	EMSPlayDropTargetResetSound
-	DOF kDOF_LowerTarget, DOFPulse
+	DOF kDOF_LowerTargets, DOFPulse
 End Sub
 
 Sub LightsOff
