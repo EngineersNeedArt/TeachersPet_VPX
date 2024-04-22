@@ -457,6 +457,9 @@ Sub Table1_KeyDown (ByVal keycode)
 	End If
 End Sub
 
+Const kMinimumPlungerLaneX = 890
+Const kMinimumPlungerLaneY = 1700
+
 Sub Table1_KeyUp (ByVal keycode)
 	' GNMOD
 	If EnteringInitials Then
@@ -473,7 +476,8 @@ Sub Table1_KeyUp (ByVal keycode)
 		On Error Resume Next
 		existingBallX = ActiveBall.X
 		existingBallY = ActiveBall.Y
-		If existingBallX > 890 And existingBallY > 1700 Then
+		' See if the ActiveBall's X and Y location put it in the corner with the plunger.
+		If existingBallX > kMinimumPlungerLaneX And existingBallY > kMinimumPlungerLaneY Then
 			EMSPlayPlungerReleaseBallSound Plunger
 		Else
 			EMSPlayPlungerReleaseNoBallSound Plunger
