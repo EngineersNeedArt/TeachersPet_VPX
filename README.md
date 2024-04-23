@@ -1,5 +1,7 @@
 # Teacher's Pet
 
+<img src="https://engineersneedart.com/blog/petsounds/teachers_pet_backglass.jpg" width="400" />
+
 *Teacher's Pet* is a classic pinball table that was reproduced (simulated? emulated?) for Visual Pinball version 10 (VPX) by the later user, Loserman76 (his real name was Jeff Whitehead).
 
 I chose his pinball table as an excellent test-case for learning a little about scripting in VPX — specifically for a series of blog posts where I would walk through how to update the sound code and sound resources to use an improved library of sounds and code that are more dynamic.
